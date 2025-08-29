@@ -16,7 +16,15 @@
     }
   ],
   
-  // Environment variables for JWT and other secrets
+  // R2 Bucket for image storage
+  "r2_buckets": [
+    {
+      "binding": "IMAGES",
+      "bucket_name": "wightcars-images"
+    }
+  ],
+  
+  // Environment variables for JWT and other secrets  
   "vars": {
     "ENVIRONMENT": "development"
   }

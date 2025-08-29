@@ -9,6 +9,7 @@ import auth from './routes/auth'
 import cars from './routes/cars'
 import messages from './routes/messages'
 import users from './routes/users'
+import images from './routes/images'
 
 const app = new Hono<{ Bindings: CloudflareBindings }>()
 
@@ -30,6 +31,7 @@ app.route('/api/auth', auth)
 app.route('/api/cars', cars)
 app.route('/api/messages', messages)
 app.route('/api/users', users)
+app.route('/api/images', images)
 
 // API health check
 app.get('/api/health', async (c) => {

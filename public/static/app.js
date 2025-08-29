@@ -782,6 +782,8 @@ const CarDetails = {
       
       if (response.data.success) {
         this.renderCarDetails(response.data.data, container);
+        // Load car images after rendering details
+        await this.loadCarImages(carId);
       } else {
         Utils.showError('car-details-container', response.data.error);
       }
@@ -796,12 +798,24 @@ const CarDetails = {
     
     container.innerHTML = `
       <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-        <!-- Car Images -->
-        <div class="relative h-96 bg-gray-200">
-          <img src="${car.featured_image || '/static/images/car-placeholder.jpg'}" 
-               alt="${car.title}" 
-               class="w-full h-full object-cover">
-          ${car.is_featured ? '<div class="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">Featured</div>' : ''}
+        <!-- Car Images Gallery -->
+        <div class="relative">
+          <!-- Main Image -->
+          <div id="main-image-container" class="relative h-96 bg-gray-200">
+            <img id="main-image" src="${car.featured_image || '/static/images/cars/placeholder-car.svg'}" 
+                 alt="${car.title}" 
+                 class="w-full h-full object-cover cursor-pointer"
+                 onclick="CarDetails.openImageModal(this.src)">
+            ${car.is_featured ? '<div class="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">Featured</div>' : ''}
+            <div class="absolute top-4 right-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm" id="image-counter">
+              Loading images...
+            </div>
+          </div>
+          
+          <!-- Image Thumbnails -->
+          <div id="image-thumbnails" class="flex gap-2 p-4 bg-gray-50 overflow-x-auto">
+            <!-- Thumbnails will be loaded here -->
+          </div>
         </div>
         
         <!-- Car Info -->
@@ -1064,6 +1078,86 @@ const CarDetails = {
     } catch (error) {
       Utils.showToast('Failed to delete car listing', 'error');
     }
+  },
+
+  async loadCarImages(carId) {
+    try {
+      const response = await axios.get(`/api/images/car/${carId}`);
+      if (response.data.success) {
+        this.renderImageGallery(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error loading car images:', error);
+      // Show placeholder if no images
+      document.getElementById('image-counter').textContent = '0 images';
+    }
+  },
+
+  renderImageGallery(imageData) {
+    const mainImage = document.getElementById('main-image');
+    const thumbnailsContainer = document.getElementById('image-thumbnails');
+    const imageCounter = document.getElementById('image-counter');
+    
+    if (imageData.images.length === 0) {
+      imageCounter.textContent = '0 images';
+      thumbnailsContainer.innerHTML = '<p class="text-gray-500 text-sm">No images available</p>';
+      return;
+    }
+
+    // Update counter
+    imageCounter.textContent = `${imageData.images.length} image${imageData.images.length > 1 ? 's' : ''}`;
+    
+    // Set featured image as main
+    if (imageData.featured) {
+      mainImage.src = imageData.featured;
+    }
+
+    // Create thumbnails
+    const thumbnailsHTML = imageData.images.map((image, index) => `
+      <div class="flex-shrink-0 cursor-pointer ${image.isFeatured ? 'ring-2 ring-blue-500' : ''}" 
+           onclick="CarDetails.setMainImage('${image.url}', ${index})">
+        <img src="${image.url}" 
+             alt="Car image ${index + 1}" 
+             class="w-20 h-16 object-cover rounded border hover:border-blue-500 transition-colors">
+      </div>
+    `).join('');
+
+    thumbnailsContainer.innerHTML = thumbnailsHTML;
+  },
+
+  setMainImage(imageUrl, index) {
+    const mainImage = document.getElementById('main-image');
+    mainImage.src = imageUrl;
+    
+    // Update thumbnail selection
+    const thumbnails = document.querySelectorAll('#image-thumbnails > div');
+    thumbnails.forEach((thumb, i) => {
+      if (i === index) {
+        thumb.classList.add('ring-2', 'ring-blue-500');
+      } else {
+        thumb.classList.remove('ring-2', 'ring-blue-500');
+      }
+    });
+  },
+
+  openImageModal(imageSrc) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+    modal.innerHTML = `
+      <div class="relative max-w-4xl max-h-full p-4">
+        <img src="${imageSrc}" alt="Car image" class="max-w-full max-h-full object-contain">
+        <button onclick="this.closest('.fixed').remove()" 
+                class="absolute top-4 right-4 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full w-8 h-8 flex items-center justify-center">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    `;
+    
+    modal.onclick = (e) => {
+      if (e.target === modal) modal.remove();
+    };
+    
+    document.body.appendChild(modal);
   }
 };
 
@@ -1585,6 +1679,38 @@ const SellCar = {
                     placeholder="Any issues, damage, or specific condition notes..."></textarea>
         </div>
 
+        <!-- Car Images -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Car Images</label>
+          <div class="space-y-4">
+            <!-- Image Upload Drop Zone -->
+            <div id="image-drop-zone" 
+                 class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer">
+              <div class="space-y-2">
+                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
+                <div class="text-lg font-medium text-gray-700">Upload Car Images</div>
+                <div class="text-sm text-gray-500">
+                  Drag and drop images here, or click to select files<br>
+                  <span class="font-medium">Maximum 8 images, 5MB per image</span><br>
+                  Supported formats: JPEG, PNG, WebP
+                </div>
+              </div>
+              <input type="file" id="image-files" multiple accept="image/*" class="hidden">
+            </div>
+
+            <!-- Image Counter -->
+            <div class="flex justify-between items-center text-sm text-gray-600">
+              <span id="image-counter">0/8 images</span>
+              <span class="text-xs">First image will be set as featured image</span>
+            </div>
+
+            <!-- Uploaded Images Grid -->
+            <div id="uploaded-images" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <!-- Uploaded images will appear here -->
+            </div>
+          </div>
+        </div>
+
         <!-- Submit Button -->
         <div class="flex justify-end space-x-4">
           <button type="button" onclick="window.history.back()" 
@@ -1664,10 +1790,29 @@ const SellCar = {
         }
 
         if (response.data.success) {
+          const carId = response.data.data.id;
+          
+          // If this is a new car (not editing), set up image upload with the new car ID
+          if (!this.editingCarId) {
+            ImageUpload.carId = carId;
+          }
+          
           Utils.showToast(`Car listing ${this.editingCarId ? 'updated' : 'created'} successfully!`, 'success');
-          setTimeout(() => {
-            window.location.href = `/car/${response.data.data.id}`;
-          }, 1000);
+          
+          // Check if there are images to upload for new cars
+          const hasImages = document.querySelectorAll('#image-files')[0]?.files?.length > 0;
+          
+          if (!this.editingCarId && hasImages) {
+            Utils.showToast('Now uploading your images...', 'info');
+            // Delay redirect to allow image uploads to complete
+            setTimeout(() => {
+              window.location.href = `/car/${carId}`;
+            }, 3000);
+          } else {
+            setTimeout(() => {
+              window.location.href = `/car/${carId}`;
+            }, 1000);
+          }
         } else {
           throw new Error(response.data.error);
         }
@@ -1692,6 +1837,301 @@ const SellCar = {
     if (feature) {
       this.addFeatureCheckbox(feature, true);
       input.value = '';
+    }
+  },
+
+  setupImageUpload() {
+    // Initialize image upload with car ID if editing
+    ImageUpload.init(this.editingCarId);
+  }
+};
+
+// Image Upload Functions
+const ImageUpload = {
+  maxFiles: 8,
+  maxFileSize: 5 * 1024 * 1024, // 5MB
+  allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+
+  init(carId = null) {
+    this.carId = carId;
+    this.setupDropZone();
+    this.setupFileInput();
+    if (carId) {
+      this.loadExistingImages(carId);
+    }
+  },
+
+  setupDropZone() {
+    const dropZone = document.getElementById('image-drop-zone');
+    if (!dropZone) return;
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('border-blue-500', 'bg-blue-50');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+      
+      const files = Array.from(e.dataTransfer.files);
+      this.handleFiles(files);
+    });
+
+    dropZone.addEventListener('click', () => {
+      document.getElementById('image-files').click();
+    });
+  },
+
+  setupFileInput() {
+    const fileInput = document.getElementById('image-files');
+    if (!fileInput) return;
+
+    fileInput.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files);
+      this.handleFiles(files);
+    });
+  },
+
+  async handleFiles(files) {
+    const validFiles = this.validateFiles(files);
+    if (validFiles.length === 0) return;
+
+    for (const file of validFiles) {
+      await this.uploadFile(file);
+    }
+  },
+
+  validateFiles(files) {
+    const currentImages = document.querySelectorAll('.uploaded-image').length;
+    const validFiles = [];
+
+    for (const file of files) {
+      // Check file count limit
+      if (currentImages + validFiles.length >= this.maxFiles) {
+        showToast('Maximum 8 images allowed per listing', 'error');
+        break;
+      }
+
+      // Check file type
+      if (!this.allowedTypes.includes(file.type)) {
+        showToast(`Invalid file type: ${file.name}. Only JPEG, PNG, and WebP images are allowed.`, 'error');
+        continue;
+      }
+
+      // Check file size
+      if (file.size > this.maxFileSize) {
+        showToast(`File too large: ${file.name}. Maximum size is 5MB.`, 'error');
+        continue;
+      }
+
+      validFiles.push(file);
+    }
+
+    return validFiles;
+  },
+
+  async uploadFile(file) {
+    if (!this.carId) {
+      showToast('Car ID is required for image upload', 'error');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const imagePreview = this.createImagePreview(file);
+    const container = document.getElementById('uploaded-images');
+    container.appendChild(imagePreview);
+
+    try {
+      const response = await axios.post(`/api/images/upload/car/${this.carId}`, formData, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          const progressBar = imagePreview.querySelector('.upload-progress');
+          if (progressBar) {
+            progressBar.style.width = `${percentCompleted}%`;
+          }
+        }
+      });
+
+      if (response.data.success) {
+        this.updateImagePreview(imagePreview, response.data.data);
+        showToast('Image uploaded successfully', 'success');
+      } else {
+        throw new Error(response.data.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      imagePreview.remove();
+      showToast(error.response?.data?.error || 'Failed to upload image', 'error');
+    }
+  },
+
+  createImagePreview(file) {
+    const div = document.createElement('div');
+    div.className = 'uploaded-image relative bg-gray-100 rounded-lg overflow-hidden';
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      div.innerHTML = `
+        <div class="aspect-video relative">
+          <img src="${e.target.result}" alt="Preview" class="w-full h-full object-cover">
+          <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div class="text-white text-center">
+              <div class="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+              <div class="text-sm">Uploading...</div>
+              <div class="w-24 h-1 bg-gray-300 rounded mt-2">
+                <div class="upload-progress h-full bg-blue-500 rounded transition-all duration-300" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    };
+    reader.readAsDataURL(file);
+
+    return div;
+  },
+
+  updateImagePreview(preview, imageData) {
+    const currentImages = document.querySelectorAll('.uploaded-image').length;
+    const isFeatured = currentImages === 1; // First image is featured by default
+
+    preview.innerHTML = `
+      <div class="aspect-video relative group">
+        <img src="${imageData.url}" alt="Car image" class="w-full h-full object-cover">
+        ${isFeatured ? '<div class="absolute top-2 left-2 bg-yellow-500 text-white px-2 py-1 rounded text-xs font-medium">Featured</div>' : ''}
+        <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+          ${!isFeatured ? '<button onclick="ImageUpload.setFeatured(\'' + imageData.key + '\')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm">Set Featured</button>' : ''}
+          <button onclick="ImageUpload.deleteImage('${imageData.key}', this)" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">Delete</button>
+        </div>
+      </div>
+    `;
+
+    preview.dataset.imageKey = imageData.key;
+  },
+
+  async loadExistingImages(carId) {
+    try {
+      const response = await axios.get(`/api/images/car/${carId}`);
+      if (response.data.success) {
+        const container = document.getElementById('uploaded-images');
+        container.innerHTML = '';
+
+        response.data.data.images.forEach(image => {
+          const preview = document.createElement('div');
+          preview.className = 'uploaded-image relative bg-gray-100 rounded-lg overflow-hidden';
+          preview.dataset.imageKey = image.key;
+          
+          preview.innerHTML = `
+            <div class="aspect-video relative group">
+              <img src="${image.url}" alt="Car image" class="w-full h-full object-cover">
+              ${image.isFeatured ? '<div class="absolute top-2 left-2 bg-yellow-500 text-white px-2 py-1 rounded text-xs font-medium">Featured</div>' : ''}
+              <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                ${!image.isFeatured ? '<button onclick="ImageUpload.setFeatured(\'' + image.key + '\')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm">Set Featured</button>' : ''}
+                <button onclick="ImageUpload.deleteImage('${image.key}', this)" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">Delete</button>
+              </div>
+            </div>
+          `;
+          
+          container.appendChild(preview);
+        });
+
+        this.updateImageCounter();
+      }
+    } catch (error) {
+      console.error('Error loading existing images:', error);
+    }
+  },
+
+  async setFeatured(imageKey) {
+    if (!this.carId) return;
+
+    try {
+      const response = await axios.put(`/api/images/car/${this.carId}/featured`, {
+        imageKey: imageKey
+      }, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.data.success) {
+        // Update UI to show new featured image
+        document.querySelectorAll('.uploaded-image').forEach(img => {
+          const featuredBadge = img.querySelector('.bg-yellow-500');
+          const setFeaturedBtn = img.querySelector('button[onclick*="setFeatured"]');
+          
+          if (img.dataset.imageKey === imageKey) {
+            // Add featured badge to this image
+            if (!featuredBadge) {
+              const imgContainer = img.querySelector('.aspect-video');
+              const badge = document.createElement('div');
+              badge.className = 'absolute top-2 left-2 bg-yellow-500 text-white px-2 py-1 rounded text-xs font-medium';
+              badge.textContent = 'Featured';
+              imgContainer.appendChild(badge);
+            }
+            // Remove set featured button
+            if (setFeaturedBtn) setFeaturedBtn.remove();
+          } else {
+            // Remove featured badge from other images
+            if (featuredBadge) featuredBadge.remove();
+            // Add set featured button if not exists
+            if (!setFeaturedBtn) {
+              const buttonContainer = img.querySelector('.group-hover\\:opacity-100');
+              const button = document.createElement('button');
+              button.onclick = () => this.setFeatured(img.dataset.imageKey);
+              button.className = 'bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm';
+              button.textContent = 'Set Featured';
+              buttonContainer.insertBefore(button, buttonContainer.firstChild);
+            }
+          }
+        });
+
+        showToast('Featured image updated', 'success');
+      }
+    } catch (error) {
+      console.error('Error setting featured image:', error);
+      showToast('Failed to set featured image', 'error');
+    }
+  },
+
+  async deleteImage(imageKey, buttonElement) {
+    if (!confirm('Are you sure you want to delete this image?')) return;
+
+    try {
+      const response = await axios.delete(`/api/images/${imageKey}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.data.success) {
+        const imageElement = buttonElement.closest('.uploaded-image');
+        imageElement.remove();
+        this.updateImageCounter();
+        showToast('Image deleted successfully', 'success');
+      }
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      showToast('Failed to delete image', 'error');
+    }
+  },
+
+  updateImageCounter() {
+    const count = document.querySelectorAll('.uploaded-image').length;
+    const counter = document.getElementById('image-counter');
+    if (counter) {
+      counter.textContent = `${count}/${this.maxFiles} images`;
     }
   }
 };

@@ -4,6 +4,7 @@
 // Cloudflare bindings
 export interface CloudflareBindings {
   DB: D1Database;
+  IMAGES: R2Bucket;
   ENVIRONMENT: string;
   JWT_SECRET?: string;
 }
