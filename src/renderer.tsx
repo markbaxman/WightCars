@@ -115,6 +115,15 @@ export const renderer = jsxRenderer(({ children }) => {
         {/* JavaScript Libraries */}
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/relativeTime.js"></script>
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            // Initialize DayJS plugins
+            if (typeof dayjs !== 'undefined' && dayjs.extend) {
+              dayjs.extend(window.dayjs_plugin_relativeTime);
+            }
+          `
+        }}></script>
         
         {/* Main Application JavaScript */}
         <script src="/static/app.js"></script>

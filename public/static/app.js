@@ -41,7 +41,27 @@ const Utils = {
 
   // Format relative time
   formatRelativeTime(dateString) {
-    return dayjs(dateString).fromNow();
+    try {
+      // Try to use dayjs fromNow (requires relativeTime plugin)
+      if (dayjs.extend) {
+        return dayjs(dateString).fromNow();
+      } else {
+        // Fallback: simple relative time calculation
+        const now = new Date();
+        const date = new Date(dateString);
+        const diffMs = now - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 0) return 'Today';
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 7) return `${diffDays} days ago`;
+        if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+        return this.formatDate(dateString);
+      }
+    } catch (error) {
+      // Ultimate fallback to formatted date
+      return this.formatDate(dateString);
+    }
   },
 
   // Format number with commas
@@ -312,17 +332,8 @@ const Cars = {
   },
 
   async getFeaturedCars() {
-    try {
-      const response = await axios.get('/cars/featured');
-      
-      if (response.data.success) {
-        AppState.featuredCars = response.data.data || [];
-        this.renderFeaturedCars();
-      }
-    } catch (error) {
-      console.error('Error fetching featured cars:', error);
-      Utils.showError('featured-cars', 'Failed to load featured cars');
-    }
+    // Deprecated: Use loadFeaturedCars() instead
+    return this.loadFeaturedCars();
   },
 
   async searchCars(filters = {}) {
@@ -347,58 +358,7 @@ const Cars = {
     }
   },
 
-  renderFeaturedCars() {
-    const container = document.getElementById('featured-cars');
-    if (!container) return;
 
-    if (AppState.featuredCars.length === 0) {
-      container.innerHTML = `
-        <div class="col-span-full text-center py-8">
-          <i class="fas fa-car text-4xl text-gray-400 mb-4"></i>
-          <p class="text-gray-500">No featured cars available</p>
-        </div>
-      `;
-      return;
-    }
-
-    container.innerHTML = AppState.featuredCars.map(car => `
-      <div class="car-card bg-white rounded-lg shadow-md overflow-hidden">
-        <div class="relative">
-          ${car.featured_image ? 
-            `<img src="${car.featured_image}" alt="${car.title}" class="w-full h-48 object-cover">` :
-            `<div class="car-image-placeholder w-full h-48">
-              <i class="fas fa-car"></i>
-            </div>`
-          }
-          ${car.is_featured ? '<div class="badge-featured absolute top-2 right-2">Featured</div>' : ''}
-          ${car.seller?.is_dealer ? '<div class="badge-dealer absolute top-2 left-2">Dealer</div>' : ''}
-        </div>
-        
-        <div class="p-4">
-          <h3 class="font-semibold text-lg mb-2 line-clamp-2">${car.title}</h3>
-          
-          <div class="flex justify-between items-center mb-3">
-            <span class="price-small">${Utils.formatPrice(car.price)}</span>
-            <span class="text-sm text-gray-600">${car.year}</span>
-          </div>
-          
-          <div class="flex items-center justify-between text-sm text-gray-600 mb-3">
-            <span><i class="fas fa-tachometer-alt mr-1"></i>${car.mileage ? car.mileage.toLocaleString() + ' miles' : 'N/A'}</span>
-            <span><i class="fas fa-gas-pump mr-1"></i>${car.fuel_type}</span>
-          </div>
-          
-          <div class="flex items-center text-sm text-gray-600 mb-4">
-            <i class="fas fa-map-marker-alt mr-1"></i>
-            <span>${car.location}</span>
-          </div>
-          
-          <a href="/car/${car.id}" class="block w-full bg-blue-600 text-white text-center py-2 rounded-md hover:bg-blue-700 transition duration-200">
-            View Details
-          </a>
-        </div>
-      </div>
-    `).join('');
-  },
 
   renderCarsGrid() {
     const container = document.getElementById('cars-grid');
@@ -538,6 +498,90 @@ const Cars = {
     const currentUrl = new URL(window.location);
     currentUrl.searchParams.set('page', page);
     window.location.href = currentUrl.toString();
+  },
+
+  async loadFeaturedCars() {
+    try {
+      const response = await axios.get('/cars/featured');
+      
+      if (response.data.success && response.data.data) {
+        this.renderFeaturedCars(response.data.data);
+      } else {
+        console.error('Invalid featured cars response:', response.data);
+        this.renderFeaturedCarsError();
+      }
+    } catch (error) {
+      console.error('Error loading featured cars:', error);
+      this.renderFeaturedCarsError();
+    }
+  },
+
+  renderFeaturedCars(cars) {
+    const container = document.getElementById('featured-cars');
+    if (!container) return;
+
+    // Handle undefined or non-array cars
+    if (!cars || !Array.isArray(cars)) {
+      console.error('Featured cars data is not a valid array:', cars);
+      this.renderFeaturedCarsError();
+      return;
+    }
+
+    if (cars.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-8 col-span-full">
+          <i class="fas fa-car text-4xl text-gray-400 mb-4"></i>
+          <p class="text-gray-500">No featured cars available at the moment.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = cars.map(car => `
+      <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+        <div class="aspect-video bg-gray-200 relative">
+          <img src="${car.featured_image || '/static/images/car-placeholder.jpg'}" 
+               alt="${car.title}" 
+               class="w-full h-full object-cover">
+          <div class="absolute top-2 right-2">
+            <span class="bg-yellow-500 text-white px-2 py-1 rounded text-xs font-semibold">Featured</span>
+          </div>
+        </div>
+        <div class="p-4">
+          <h3 class="font-semibold text-lg mb-2 line-clamp-1">${car.title}</h3>
+          <p class="text-2xl font-bold text-green-600 mb-2">${Utils.formatPrice(car.price)}</p>
+          <div class="flex justify-between text-sm text-gray-600 mb-3">
+            <span>${car.year}</span>
+            <span>${car.mileage ? Utils.formatNumber(car.mileage) + ' miles' : 'N/A'}</span>
+          </div>
+          <p class="text-sm text-gray-500 mb-3">${car.location}</p>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center text-xs text-gray-500">
+              ${car.seller.is_verified ? '<i class="fas fa-check-circle text-green-500 mr-1"></i>Verified' : ''}
+              ${car.seller.is_dealer ? '<span class="ml-2 bg-blue-100 text-blue-800 px-2 py-1 rounded">Dealer</span>' : ''}
+            </div>
+            <a href="/car/${car.id}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">
+              View Details
+            </a>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  },
+
+  renderFeaturedCarsError() {
+    const container = document.getElementById('featured-cars');
+    if (!container) return;
+
+    container.innerHTML = `
+      <div class="text-center py-8 col-span-full">
+        <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
+        <p class="text-red-600 mb-2">Unable to load featured cars</p>
+        <button onclick="Cars.loadFeaturedCars()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          Try Again
+        </button>
+      </div>
+    `;
   }
 };
 
@@ -599,6 +643,41 @@ const Forms = {
         submitBtn.disabled = false;
       }
     });
+  },
+
+  setupHomepageSearch() {
+    const searchForm = document.querySelector('#search-make, #search-model');
+    if (!searchForm) return;
+
+    // Setup make/model dependency on homepage
+    const makeSelect = document.getElementById('search-make');
+    const modelSelect = document.getElementById('search-model');
+    
+    if (makeSelect && modelSelect) {
+      makeSelect.addEventListener('change', () => {
+        Cars.populateModelDropdown(makeSelect, modelSelect);
+      });
+    }
+  },
+
+  setupBrowseFilters() {
+    const filtersForm = document.getElementById('filters-form');
+    if (!filtersForm) return;
+
+    // Setup make/model dependency on browse page
+    const makeSelect = filtersForm.querySelector('select[name="make"]');
+    const modelSelect = filtersForm.querySelector('select[name="model"]');
+    
+    if (makeSelect && modelSelect) {
+      makeSelect.addEventListener('change', () => {
+        Cars.populateModelDropdown(makeSelect, modelSelect);
+      });
+    }
+
+    // Auto-apply filters when changed
+    filtersForm.addEventListener('change', () => {
+      setTimeout(() => applyFilters(), 300); // Small delay for UX
+    });
   }
 };
 
@@ -640,6 +719,8 @@ const Navigation = {
     }
   }
 };
+
+
 
 // Filter Functions for Browse Page
 function applyFilters() {
@@ -1788,7 +1869,7 @@ const SellCar = {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
           });
         } else {
-          response = await axios.post('/api/cars', carData, {
+          response = await axios.post('/cars', carData, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
           });
         }
@@ -2757,7 +2838,7 @@ const AdminPanel = {
 
   async loadDashboard() {
     try {
-      const response = await axios.get('/api/admin/dashboard', {
+      const response = await axios.get('/admin/dashboard', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
 
@@ -2994,7 +3075,7 @@ const AdminPanel = {
 
   async loadUserManagement() {
     try {
-      const response = await axios.get('/api/admin/users?page=1&limit=20', {
+      const response = await axios.get('/admin/users?page=1&limit=20', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
 
@@ -3504,10 +3585,10 @@ const AdminPanel = {
   async loadModerationStats() {
     try {
       const [pending, approved, rejected, flagged] = await Promise.all([
-        axios.get('/api/admin/moderation/cars?status=pending', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }}),
-        axios.get('/api/admin/moderation/cars?status=approved', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }}),
-        axios.get('/api/admin/moderation/cars?status=rejected', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }}),
-        axios.get('/api/admin/moderation/cars?status=flagged', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }})
+        axios.get('/admin/moderation/cars?status=pending', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }}),
+        axios.get('/admin/moderation/cars?status=approved', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }}),
+        axios.get('/admin/moderation/cars?status=rejected', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }}),
+        axios.get('/admin/moderation/cars?status=flagged', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }})
       ]);
 
       // Update counters
@@ -4233,7 +4314,7 @@ const AdminPanel = {
 
   async loadSettings() {
     try {
-      const response = await axios.get('/api/admin/settings', {
+      const response = await axios.get('/admin/settings', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
 
@@ -4562,7 +4643,7 @@ const AdminPanel = {
     };
 
     try {
-      const response = await axios.post('/api/admin/settings', { settings }, {
+      const response = await axios.post('/admin/settings', { settings }, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
 
@@ -4581,7 +4662,7 @@ const AdminPanel = {
     }
 
     try {
-      const response = await axios.post('/api/admin/settings/reset', {}, {
+      const response = await axios.post('/admin/settings/reset', {}, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
 
