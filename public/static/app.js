@@ -1683,20 +1683,36 @@ const SellCar = {
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">Car Images</label>
           <div class="space-y-4">
-            <!-- Image Upload Drop Zone -->
-            <div id="image-drop-zone" 
-                 class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer">
-              <div class="space-y-2">
-                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
-                <div class="text-lg font-medium text-gray-700">Upload Car Images</div>
-                <div class="text-sm text-gray-500">
-                  Drag and drop images here, or click to select files<br>
-                  <span class="font-medium">Maximum 8 images, 5MB per image</span><br>
-                  Supported formats: JPEG, PNG, WebP
+            ${this.editingCarId ? `
+              <!-- Image Upload Drop Zone (Editing Mode) -->
+              <div id="image-drop-zone" 
+                   class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer">
+                <div class="space-y-2">
+                  <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
+                  <div class="text-lg font-medium text-gray-700">Upload Car Images</div>
+                  <div class="text-sm text-gray-500">
+                    Drag and drop images here, or click to select files<br>
+                    <span class="font-medium">Maximum 8 images, 5MB per image</span><br>
+                    Supported formats: JPEG, PNG, WebP
+                  </div>
+                </div>
+                <input type="file" id="image-files" multiple accept="image/*" class="hidden">
+              </div>
+            ` : `
+              <!-- Image Upload Info (New Listing Mode) -->
+              <div class="border-2 border-dashed border-blue-200 bg-blue-50 rounded-lg p-6 text-center">
+                <div class="space-y-2">
+                  <i class="fas fa-info-circle text-4xl text-blue-500"></i>
+                  <div class="text-lg font-medium text-blue-700">Image Upload Available After Saving</div>
+                  <div class="text-sm text-blue-600">
+                    Save your car listing first, then you'll be able to upload up to 8 images<br>
+                    <span class="font-medium">Don't worry - you can add images right after creating the listing!</span>
+                  </div>
                 </div>
               </div>
-              <input type="file" id="image-files" multiple accept="image/*" class="hidden">
-            </div>
+              <!-- Hidden file input for form validation -->
+              <input type="file" id="image-files" multiple accept="image/*" class="hidden" disabled>
+            `}
 
             <!-- Image Counter -->
             <div class="flex justify-between items-center text-sm text-gray-600">
@@ -1792,26 +1808,18 @@ const SellCar = {
         if (response.data.success) {
           const carId = response.data.data.id;
           
-          // If this is a new car (not editing), set up image upload with the new car ID
-          if (!this.editingCarId) {
-            ImageUpload.carId = carId;
-          }
-          
-          Utils.showToast(`Car listing ${this.editingCarId ? 'updated' : 'created'} successfully!`, 'success');
-          
-          // Check if there are images to upload for new cars
-          const hasImages = document.querySelectorAll('#image-files')[0]?.files?.length > 0;
-          
-          if (!this.editingCarId && hasImages) {
-            Utils.showToast('Now uploading your images...', 'info');
-            // Delay redirect to allow image uploads to complete
-            setTimeout(() => {
-              window.location.href = `/car/${carId}`;
-            }, 3000);
-          } else {
+          if (this.editingCarId) {
+            // Editing existing car
+            Utils.showToast('Car listing updated successfully!', 'success');
             setTimeout(() => {
               window.location.href = `/car/${carId}`;
             }, 1000);
+          } else {
+            // New car created - redirect to edit mode to add images
+            Utils.showToast('Car listing created successfully! Now you can add images.', 'success');
+            setTimeout(() => {
+              window.location.href = `/sell?edit=${carId}`;
+            }, 1500);
           }
         } else {
           throw new Error(response.data.error);
@@ -1937,7 +1945,7 @@ const ImageUpload = {
 
   async uploadFile(file) {
     if (!this.carId) {
-      showToast('Car ID is required for image upload', 'error');
+      showToast('Please save your car listing first, then you can upload images from the editing mode', 'info');
       return;
     }
 
