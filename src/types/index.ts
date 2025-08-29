@@ -282,55 +282,196 @@ export const ISLE_OF_WIGHT_LOCATIONS = [
 
 export type IsleOfWightLocation = typeof ISLE_OF_WIGHT_LOCATIONS[number];
 
-// Popular car makes and models for Isle of Wight market
+// Comprehensive UK car makes and models database (2024)
+// Based on current market research and best-selling models
 export const POPULAR_CAR_MAKES: CarMake[] = [
   {
-    name: 'Ford',
-    models: ['Fiesta', 'Focus', 'Mondeo', 'Kuga', 'Puma', 'EcoSport', 'Mustang']
-  },
-  {
-    name: 'Vauxhall',
-    models: ['Corsa', 'Astra', 'Insignia', 'Mokka', 'Crossland', 'Grandland']
+    name: 'Audi',
+    models: ['A1', 'A3', 'A4', 'A4 Allroad', 'A5', 'A6', 'A6 Allroad', 'A7', 'A8', 'Q2', 'Q3', 'Q4 e-tron', 'Q5', 'Q7', 'Q8', 'TT', 'TTS', 'TT RS', 'RS3', 'RS4', 'RS5', 'RS6', 'RS7', 'e-tron GT', 'R8']
   },
   {
     name: 'BMW',
-    models: ['1 Series', '2 Series', '3 Series', '4 Series', '5 Series', 'X1', 'X3', 'X5']
-  },
-  {
-    name: 'Volkswagen',
-    models: ['Polo', 'Golf', 'Passat', 'Tiguan', 'T-Roc', 'Arteon']
-  },
-  {
-    name: 'Audi',
-    models: ['A1', 'A3', 'A4', 'A6', 'Q2', 'Q3', 'Q5', 'TT']
+    models: ['1 Series', '2 Series Gran Coupe', '2 Series Active Tourer', '3 Series', '3 Series Touring', '4 Series', '4 Series Gran Coupe', '5 Series', '5 Series Touring', '6 Series GT', '7 Series', '8 Series', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'iX1', 'iX3', 'iX', 'i4', 'i5', 'i7', 'M2', 'M3', 'M4', 'M5', 'X3 M', 'X4 M', 'X5 M', 'X6 M', 'Z4']
   },
   {
     name: 'Mercedes-Benz',
-    models: ['A-Class', 'C-Class', 'E-Class', 'CLA', 'GLA', 'GLC', 'GLE']
+    models: ['A-Class', 'B-Class', 'C-Class', 'C-Class Estate', 'CLA', 'CLA Shooting Brake', 'E-Class', 'E-Class Estate', 'S-Class', 'GLA', 'GLB', 'GLC', 'GLC Coupe', 'GLE', 'GLE Coupe', 'GLS', 'G-Class', 'EQA', 'EQB', 'EQC', 'EQE', 'EQS', 'AMG GT', 'SL', 'CLE']
   },
   {
-    name: 'Honda',
-    models: ['Civic', 'Accord', 'CR-V', 'HR-V', 'Jazz']
+    name: 'Ford',
+    models: ['Ka+', 'Fiesta', 'Focus', 'Focus Estate', 'Mondeo', 'Mondeo Estate', 'S-MAX', 'Galaxy', 'Puma', 'Kuga', 'Explorer', 'Mustang', 'Mustang Mach-E', 'Tourneo Connect', 'Tourneo Courier', 'Transit Connect', 'Transit Custom', 'Transit']
+  },
+  {
+    name: 'Volkswagen',
+    models: ['up!', 'Polo', 'Golf', 'Golf Estate', 'Golf GTI', 'Golf R', 'Jetta', 'Passat', 'Passat Estate', 'Arteon', 'T-Cross', 'T-Roc', 'Tiguan', 'Tiguan Allspace', 'Touareg', 'ID.3', 'ID.4', 'ID.5', 'ID.7', 'ID. Buzz', 'Touran', 'Sharan', 'Caddy', 'Transporter']
   },
   {
     name: 'Toyota',
-    models: ['Yaris', 'Corolla', 'Camry', 'RAV4', 'C-HR', 'Prius']
+    models: ['Aygo X', 'Yaris', 'Yaris Cross', 'Corolla', 'Corolla Touring Sports', 'Camry', 'Prius', 'C-HR', 'RAV4', 'Highlander', 'Land Cruiser', 'Hilux', 'Proace City', 'Proace', 'Proace Max', 'GR Yaris', 'GR Supra', 'GR86', 'bZ4X', 'Mirai']
   },
   {
     name: 'Nissan',
-    models: ['Micra', 'Juke', 'Qashqai', 'X-Trail', 'Leaf']
+    models: ['Micra', 'Juke', 'Qashqai', 'X-Trail', 'Pathfinder', 'Leaf', 'Ariya', 'GT-R', 'Z', '370Z', 'Navara', 'NV200', 'NV300', 'NV400', 'e-NV200', 'Townstar']
+  },
+  {
+    name: 'Honda',
+    models: ['Jazz', 'Civic', 'Civic Type R', 'Accord', 'HR-V', 'CR-V', 'Pilot', 'e', 'NSX']
+  },
+  {
+    name: 'Hyundai',
+    models: ['i10', 'i20', 'i20 N', 'i30', 'i30 N', 'i30 Fastback N', 'i40', 'Bayon', 'Kona', 'Kona N', 'Tucson', 'Santa Fe', 'Nexo', 'IONIQ 5', 'IONIQ 6', 'Genesis GV70', 'Genesis G90']
+  },
+  {
+    name: 'Kia',
+    models: ['Picanto', 'Rio', 'Stonic', 'Xceed', 'Ceed', 'Ceed SW', 'ProCeed', 'Sportage', 'Sorento', 'Niro', 'EV6', 'EV9', 'Stinger']
+  },
+  {
+    name: 'Peugeot',
+    models: ['108', '208', '208 GTI', '308', '308 SW', '308 GTI', '408', '508', '508 SW', '2008', '3008', '5008', 'Rifter', 'Partner', 'Expert', 'Boxer', 'e-208', 'e-2008', 'e-308', 'e-Rifter', 'e-Partner', 'e-Expert']
+  },
+  {
+    name: 'Renault',
+    models: ['Twingo', 'Clio', 'Captur', 'Arkana', 'Megane', 'Megane E-TECH', 'Scenic E-TECH', 'Austral', 'Koleos', 'Espace', 'Kangoo', 'Trafic', 'Master', 'ZOE', 'Twizy']
+  },
+  {
+    name: 'Vauxhall',
+    models: ['Corsa', 'Corsa-e', 'Astra', 'Astra Sports Tourer', 'Insignia', 'Insignia Sports Tourer', 'Crossland', 'Mokka', 'Mokka-e', 'Grandland', 'Combo Life', 'Combo Cargo', 'Vivaro', 'Movano']
+  },
+  {
+    name: 'Citroen',
+    models: ['C1', 'C3', 'C3 Aircross', 'C4', 'C4 X', 'C5 Aircross', 'C5 X', 'Berlingo', 'SpaceTourer', 'Dispatch', 'Relay', 'e-C4', 'e-SpaceTourer', 'e-Berlingo', 'e-Dispatch']
+  },
+  {
+    name: 'Skoda',
+    models: ['Citigo', 'Fabia', 'Scala', 'Octavia', 'Octavia Estate', 'Superb', 'Superb Estate', 'Kamiq', 'Karoq', 'Kodiaq', 'Enyaq', 'Enyaq Coupe', 'Roomster', 'Yeti']
+  },
+  {
+    name: 'SEAT',
+    models: ['Mii', 'Ibiza', 'Arona', 'Leon', 'Leon Estate', 'Ateca', 'Tarraco', 'Formentor', 'Leon Cupra', 'Ateca Cupra', 'Formentor Cupra']
+  },
+  {
+    name: 'Mazda',
+    models: ['MX-30', 'Mazda2', 'Mazda3', 'Mazda6', 'CX-3', 'CX-30', 'CX-5', 'CX-60', 'MX-5']
+  },
+  {
+    name: 'Mitsubishi',
+    models: ['Mirage', 'ASX', 'Eclipse Cross', 'Outlander', 'Outlander PHEV', 'L200']
+  },
+  {
+    name: 'Subaru',
+    models: ['Impreza', 'XV', 'Forester', 'Outback', 'Levorg', 'WRX', 'BRZ']
+  },
+  {
+    name: 'Suzuki',
+    models: ['Celerio', 'Swift', 'Swift Sport', 'Baleno', 'Ignis', 'S-Cross', 'Vitara', 'SX4 S-Cross', 'Jimny']
   },
   {
     name: 'Mini',
-    models: ['Cooper', 'Countryman', 'Clubman', 'Convertible']
+    models: ['Cooper 3-Door', 'Cooper 5-Door', 'Cooper Convertible', 'Clubman', 'Countryman', 'Electric Cooper', 'John Cooper Works']
+  },
+  {
+    name: 'Jaguar',
+    models: ['XE', 'XF', 'XJ', 'F-Type', 'E-Pace', 'F-Pace', 'I-Pace']
+  },
+  {
+    name: 'Land Rover',
+    models: ['Defender', 'Discovery Sport', 'Discovery', 'Range Rover Evoque', 'Range Rover Velar', 'Range Rover Sport', 'Range Rover']
+  },
+  {
+    name: 'Volvo',
+    models: ['V40', 'V60', 'V90', 'S60', 'S90', 'XC40', 'XC60', 'XC90', 'C40 Recharge', 'EX30', 'EX90']
   },
   {
     name: 'Tesla',
     models: ['Model 3', 'Model Y', 'Model S', 'Model X']
   },
   {
-    name: 'Peugeot',
-    models: ['208', '308', '508', '2008', '3008', '5008']
+    name: 'Lexus',
+    models: ['CT', 'IS', 'ES', 'GS', 'LS', 'LC', 'UX', 'NX', 'RX', 'GX', 'LX', 'RC', 'LFA']
+  },
+  {
+    name: 'Infiniti',
+    models: ['Q30', 'Q50', 'Q60', 'Q70', 'QX30', 'QX50', 'QX60', 'QX70', 'QX80']
+  },
+  {
+    name: 'Alfa Romeo',
+    models: ['MiTo', 'Giulietta', 'Giulia', 'Stelvio', '4C', 'Tonale']
+  },
+  {
+    name: 'Fiat',
+    models: ['500', '500C', '500X', '500L', 'Panda', 'Tipo', '600', 'Doblo', 'Ducato', '500e']
+  },
+  {
+    name: 'Jeep',
+    models: ['Renegade', 'Compass', 'Cherokee', 'Grand Cherokee', 'Wrangler', 'Gladiator', 'Avenger']
+  },
+  {
+    name: 'Dacia',
+    models: ['Sandero', 'Sandero Stepway', 'Duster', 'Jogger', 'Spring']
+  },
+  {
+    name: 'MG',
+    models: ['MG3', 'MG4', 'HS', 'ZS', 'ZS EV', 'Marvel R', 'EHS']
+  },
+  {
+    name: 'Genesis',
+    models: ['G70', 'G80', 'G90', 'GV60', 'GV70', 'GV80']
+  },
+  {
+    name: 'Cupra',
+    models: ['Ateca', 'Formentor', 'Leon', 'Born', 'Tavascan']
+  },
+  {
+    name: 'DS',
+    models: ['DS 3', 'DS 4', 'DS 7', 'DS 9']
+  },
+  {
+    name: 'Smart',
+    models: ['ForTwo', 'ForFour', '#1', '#3']
+  },
+  {
+    name: 'Porsche',
+    models: ['911', 'Boxster', 'Cayman', 'Panamera', 'Cayenne', 'Macan', 'Taycan']
+  },
+  {
+    name: 'Maserati',
+    models: ['Ghibli', 'Quattroporte', 'Levante', 'MC20', 'Grecale']
+  },
+  {
+    name: 'Ferrari',
+    models: ['F8', 'Roma', 'Portofino', 'SF90', '812', 'Purosangue']
+  },
+  {
+    name: 'Lamborghini',
+    models: ['Huracan', 'Aventador', 'Urus', 'Revuelto']
+  },
+  {
+    name: 'Bentley',
+    models: ['Continental GT', 'Continental GTC', 'Flying Spur', 'Bentayga']
+  },
+  {
+    name: 'Rolls-Royce',
+    models: ['Ghost', 'Phantom', 'Wraith', 'Dawn', 'Cullinan', 'Spectre']
+  },
+  {
+    name: 'Aston Martin',
+    models: ['Vantage', 'DB11', 'DBS', 'DBX', 'Valkyrie']
+  },
+  {
+    name: 'McLaren',
+    models: ['GT', '720S', '750S', 'Artura', '765LT']
+  },
+  {
+    name: 'Lotus',
+    models: ['Elise', 'Exige', 'Evora', 'Emira', 'Evija']
+  },
+  {
+    name: 'Morgan',
+    models: ['3 Wheeler', 'Plus Four', 'Plus Six', 'Aero 8']
+  },
+  {
+    name: 'Caterham',
+    models: ['Seven 160', 'Seven 270', 'Seven 360', 'Seven 420', 'Seven 620']
   }
 ];
 

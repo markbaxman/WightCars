@@ -62,11 +62,65 @@ INSERT OR IGNORE INTO cars (
   (
     6, 4, '2016 Mini Cooper S - Chili Pack',
     'Fun and economical Mini Cooper S with Chili Pack. Perfect for Island roads and parking. Recent service and MOT.',
-    'Mini', 'Cooper', 2016, 38000, 'petrol', 'manual', 'hatchback', '2.0L', 3, 'Midnight Black',
+    'Mini', 'Cooper 3-Door', 2016, 38000, 'petrol', 'manual', 'hatchback', '2.0L', 3, 'Midnight Black',
     13250000, 'Sandown, Isle of Wight', '2025-05-20', 1,
     '["Chili Pack", "JCW Steering Wheel", "Harman Kardon Audio", "LED Package", "17\" Alloys"]',
     'Very good condition. New tyres fitted recently.',
     '/static/images/cars/mini-cooper-s-1.jpg', 'active'
+  ),
+  (
+    7, 2, '2022 Kia Sportage GT-Line S - Hybrid Efficiency',
+    'Nearly new Kia Sportage with hybrid technology. Perfect family SUV with excellent fuel economy and 7-year warranty remaining.',
+    'Kia', 'Sportage', 2022, 8500, 'hybrid', 'automatic', 'suv', '1.6L', 5, 'Platinum Graphite',
+    28995000, 'Cowes, Isle of Wight', '2026-03-15', 1,
+    '["Hybrid Technology", "Panoramic Sunroof", "Wireless Charging", "Lane Keep Assist", "Blind Spot Monitoring"]',
+    'As new condition. Manufacturer warranty until 2029.',
+    '/static/images/cars/kia-sportage-1.jpg', 'active'
+  ),
+  (
+    8, 3, '2019 Nissan Qashqai Tekna+ - Premium Features',
+    'Top spec Qashqai with ProPilot and premium leather interior. Ideal for Island families with excellent safety features.',
+    'Nissan', 'Qashqai', 2019, 32000, 'petrol', 'automatic', 'suv', '1.3L', 5, 'Pearl Black',
+    19750000, 'Ryde, Isle of Wight', '2025-08-30', 1,
+    '["ProPilot Assist", "Leather Interior", "Bose Audio", "360 Camera", "Glass Roof"]',
+    'Excellent condition. Full service history available.',
+    '/static/images/cars/nissan-qashqai-1.jpg', 'active'
+  ),
+  (
+    9, 1, '2021 Hyundai Tucson Premium - Modern Design',
+    'Striking new Tucson with bold design and latest tech. Low mileage with remaining manufacturer warranty.',
+    'Hyundai', 'Tucson', 2021, 18000, 'petrol', 'automatic', 'suv', '1.6L', 5, 'Amazon Gray',
+    26500000, 'Newport, Isle of Wight', '2025-12-10', 1,
+    '["Digital Cockpit", "Wireless CarPlay", "Heated/Ventilated Seats", "Smart Cruise Control", "Premium Audio"]',
+    'Immaculate throughout. Garage kept.',
+    '/static/images/cars/hyundai-tucson-1.jpg', 'active'
+  ),
+  (
+    10, 4, '2020 Volvo XC40 R-Design - Scandinavian Style',
+    'Premium compact SUV with distinctive design and excellent safety credentials. Perfect for Island adventures.',
+    'Volvo', 'XC40', 2020, 22000, 'petrol', 'automatic', 'suv', '2.0L', 5, 'Crystal White',
+    24995000, 'Sandown, Isle of Wight', '2025-06-25', 1,
+    '["City Safety", "Pilot Assist", "Harman Kardon Audio", "Park Assist", "Sensus Connect"]',
+    'Excellent condition. Recent service completed.',
+    '/static/images/cars/volvo-xc40-1.jpg', 'active'
+  ),
+  (
+    11, 2, '2023 MG4 EV Trophy - Electric Future',
+    'Brand new electric hatchback with impressive range. Perfect for eco-conscious Island driving with home charging capability.',
+    'MG', 'MG4', 2023, 2800, 'electric', 'automatic', 'hatchback', 'Electric', 5, 'Dover White',
+    25995000, 'Cowes, Isle of Wight', NULL, 1,
+    '["64kWh Battery", "281 Mile Range", "Fast Charging", "iSMART Technology", "Heat Pump"]',
+    'As new condition. Includes Type 2 charging cable.',
+    '/static/images/cars/mg4-ev-1.jpg', 'active'
+  ),
+  (
+    12, 3, '2018 Mercedes-Benz A-Class AMG Line - Premium Compact',
+    'Stylish premium hatchback with AMG styling and MBUX infotainment. Low mileage with full Mercedes service history.',
+    'Mercedes-Benz', 'A-Class', 2018, 28000, 'petrol', 'automatic', 'hatchback', '1.6L', 5, 'Night Black',
+    21500000, 'Ryde, Isle of Wight', '2025-09-12', 1,
+    '["MBUX Infotainment", "AMG Styling", "LED Headlights", "Reversing Camera", "Climate Control"]',
+    'Excellent condition. Recent MOT with no advisories.',
+    '/static/images/cars/mercedes-a-class-1.jpg', 'active'
   );
 
 -- Insert sample messages
@@ -74,12 +128,20 @@ INSERT OR IGNORE INTO messages (car_id, sender_id, recipient_id, subject, messag
   (1, 3, 1, 'Interest in Ford Fiesta', 'Hi, I\'m very interested in your Ford Fiesta. Is it still available? Could we arrange a viewing this weekend?', 1),
   (1, 1, 3, 'Re: Interest in Ford Fiesta', 'Hi Mike, yes it\'s still available! Happy to arrange a viewing. Saturday afternoon would work well. What time suits you?', 0),
   (2, 4, 2, 'BMW 320d Enquiry', 'Hello, could you tell me more about the service history of the BMW? Also, is the price negotiable?', 0),
-  (5, 1, 2, 'Tesla Model 3 - Home Charging', 'Hi, interested in the Tesla. Can you tell me about the home charging setup? Do you have a dedicated wall charger?', 0);
+  (5, 1, 2, 'Tesla Model 3 - Home Charging', 'Hi, interested in the Tesla. Can you tell me about the home charging setup? Do you have a dedicated wall charger?', 0),
+  (7, 4, 2, 'Kia Sportage Hybrid Question', 'Hello, what\'s the real-world fuel economy like on the Sportage? I do a lot of Island driving for work.', 0),
+  (8, 1, 3, 'Qashqai ProPilot Features', 'Hi, could you explain how the ProPilot system works? Is it helpful for Island driving conditions?', 0),
+  (11, 3, 2, 'MG4 EV Range Question', 'Interested in the MG4. What\'s the realistic range around the Island? Are there charging points in Cowes?', 0);
 
 -- Insert saved cars (favorites)
 INSERT OR IGNORE INTO saved_cars (user_id, car_id) VALUES 
-  (1, 2), -- John likes the BMW
-  (1, 5), -- John likes the Tesla
-  (3, 1), -- Mike likes the Fiesta (he enquired about it)
-  (4, 6), -- Emma likes the Mini
-  (4, 3); -- Emma likes the Type R
+  (1, 2),  -- John likes the BMW 3 Series
+  (1, 5),  -- John likes the Tesla Model 3
+  (1, 11), -- John likes the MG4 EV
+  (3, 1),  -- Mike likes the Fiesta (he enquired about it)
+  (3, 7),  -- Mike likes the Kia Sportage
+  (3, 9),  -- Mike likes the Hyundai Tucson
+  (4, 6),  -- Emma likes the Mini Cooper
+  (4, 3),  -- Emma likes the Honda Civic Type R
+  (4, 10), -- Emma likes the Volvo XC40
+  (4, 12); -- Emma likes the Mercedes A-Class

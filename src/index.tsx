@@ -71,35 +71,44 @@ app.get('/', (c) => {
             
             {/* Quick Search */}
             <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6 text-gray-800">
-              <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
                 <div>
                   <label class="block text-sm font-medium mb-2">Make</label>
-                  <select class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <select id="search-make" name="make" class="car-make-select w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">Any Make</option>
-                    <option value="ford">Ford</option>
-                    <option value="bmw">BMW</option>
-                    <option value="volkswagen">Volkswagen</option>
-                    <option value="audi">Audi</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Model</label>
+                  <select id="search-model" name="model" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Any Model</option>
                   </select>
                 </div>
                 <div>
                   <label class="block text-sm font-medium mb-2">Price Range</label>
-                  <select class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <select name="price" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">Any Price</option>
                     <option value="0-5000">Under £5,000</option>
                     <option value="5000-10000">£5,000 - £10,000</option>
                     <option value="10000-20000">£10,000 - £20,000</option>
-                    <option value="20000+">£20,000+</option>
+                    <option value="20000-30000">£20,000 - £30,000</option>
+                    <option value="30000+">£30,000+</option>
                   </select>
                 </div>
                 <div>
                   <label class="block text-sm font-medium mb-2">Location</label>
-                  <select class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <select name="location" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">Anywhere on Island</option>
                     <option value="newport">Newport</option>
                     <option value="cowes">Cowes</option>
+                    <option value="east cowes">East Cowes</option>
                     <option value="ryde">Ryde</option>
                     <option value="sandown">Sandown</option>
+                    <option value="shanklin">Shanklin</option>
+                    <option value="ventnor">Ventnor</option>
+                    <option value="freshwater">Freshwater</option>
+                    <option value="yarmouth">Yarmouth</option>
+                    <option value="bembridge">Bembridge</option>
                   </select>
                 </div>
                 <div>

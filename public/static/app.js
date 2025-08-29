@@ -220,6 +220,62 @@ const Auth = {
 
 // Car Functions
 const Cars = {
+  async loadCarMakes() {
+    try {
+      const response = await axios.get('/cars/data/makes');
+      
+      if (response.data.success) {
+        AppState.carMakes = response.data.data || [];
+        this.populateCarMakeDropdowns();
+      }
+    } catch (error) {
+      console.error('Error loading car makes:', error);
+    }
+  },
+
+  populateCarMakeDropdowns() {
+    const makeSelects = document.querySelectorAll('select[name="make"], .car-make-select');
+    
+    makeSelects.forEach(select => {
+      // Keep existing default option
+      const defaultOption = select.querySelector('option[value=""]');
+      select.innerHTML = '';
+      
+      if (defaultOption) {
+        select.appendChild(defaultOption);
+      } else {
+        select.innerHTML = '<option value="">Any Make</option>';
+      }
+      
+      // Add all car makes
+      AppState.carMakes.forEach(make => {
+        const option = document.createElement('option');
+        option.value = make.name.toLowerCase();
+        option.textContent = make.name;
+        select.appendChild(option);
+      });
+    });
+  },
+
+  populateModelDropdown(makeSelect, modelSelect) {
+    const selectedMake = makeSelect.value;
+    const makeData = AppState.carMakes.find(make => 
+      make.name.toLowerCase() === selectedMake
+    );
+    
+    // Clear existing options
+    modelSelect.innerHTML = '<option value="">Any Model</option>';
+    
+    if (makeData && makeData.models) {
+      makeData.models.forEach(model => {
+        const option = document.createElement('option');
+        option.value = model.toLowerCase();
+        option.textContent = model;
+        modelSelect.appendChild(option);
+      });
+    }
+  },
+
   async getFeaturedCars() {
     try {
       const response = await axios.get('/cars/featured');
@@ -553,12 +609,14 @@ const Navigation = {
 // Search Functions
 function searchCars() {
   const make = document.querySelector('select[name="make"]')?.value || '';
+  const model = document.querySelector('select[name="model"]')?.value || '';
   const priceRange = document.querySelector('select[name="price"]')?.value || '';
   const location = document.querySelector('select[name="location"]')?.value || '';
   
   const filters = {};
   
   if (make) filters.make = make;
+  if (model) filters.model = model;
   if (location) filters.location = location;
   
   if (priceRange) {
@@ -577,6 +635,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check authentication status
   await Auth.checkAuth();
   
+  // Load car makes data
+  await Cars.loadCarMakes();
+  
   // Setup navigation
   Navigation.setupMobileMenu();
   Navigation.setupUserMenu();
@@ -584,6 +645,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Setup forms
   Forms.setupLoginForm();
   Forms.setupRegisterForm();
+  
+  // Setup make-model dependencies
+  setupMakeModelDependency();
   
   // Page-specific initialization
   const pathname = window.location.pathname;
@@ -603,6 +667,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     Cars.searchCars(filters);
   }
 });
+
+// Setup make-model dropdown dependency
+function setupMakeModelDependency() {
+  const makeSelect = document.getElementById('search-make');
+  const modelSelect = document.getElementById('search-model');
+  
+  if (makeSelect && modelSelect) {
+    makeSelect.addEventListener('change', () => {
+      Cars.populateModelDropdown(makeSelect, modelSelect);
+    });
+  }
+}
 
 // Global error handler for API calls
 window.addEventListener('unhandledrejection', (event) => {
