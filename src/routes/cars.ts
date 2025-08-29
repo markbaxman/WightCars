@@ -241,6 +241,69 @@ cars.post('/', requireAuth, async (c) => {
   }
 })
 
+// Update existing car (requires auth and ownership)
+cars.put('/:id', requireAuth, async (c) => {
+  try {
+    const userId = c.get('userId') as number
+    const carId = parseInt(c.req.param('id'))
+    const carData: CarCreate = await c.req.json()
+    
+    if (!carId || isNaN(carId)) {
+      return c.json<ApiResponse>({
+        success: false,
+        error: 'Invalid car ID'
+      }, 400)
+    }
+
+    // Basic validation
+    if (!carData.title || !carData.make || !carData.model || !carData.year || !carData.price || !carData.location) {
+      return c.json<ApiResponse>({
+        success: false,
+        error: 'Title, make, model, year, price, and location are required'
+      }, 400)
+    }
+
+    if (carData.year < 1900 || carData.year > new Date().getFullYear() + 1) {
+      return c.json<ApiResponse>({
+        success: false,
+        error: 'Invalid year'
+      }, 400)
+    }
+
+    const db = new DatabaseService(c.env.DB)
+    
+    // Check if car exists and user owns it
+    const existingCar = await db.getCarById(carId)
+    if (!existingCar) {
+      return c.json<ApiResponse>({
+        success: false,
+        error: 'Car not found'
+      }, 404)
+    }
+
+    if (existingCar.user_id !== userId) {
+      return c.json<ApiResponse>({
+        success: false,
+        error: 'You can only edit your own car listings'
+      }, 403)
+    }
+
+    // Update the car
+    const car = await db.updateCar(carId, carData)
+    
+    return c.json<ApiResponse<Car>>({
+      success: true,
+      data: car
+    })
+  } catch (error) {
+    console.error('Error updating car:', error)
+    return c.json<ApiResponse>({
+      success: false,
+      error: 'Failed to update car listing'
+    }, 500)
+  }
+})
+
 // Get user's own car listings (requires auth)
 cars.get('/my/listings', requireAuth, async (c) => {
   try {

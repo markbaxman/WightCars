@@ -1683,36 +1683,20 @@ const SellCar = {
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">Car Images</label>
           <div class="space-y-4">
-            ${this.editingCarId ? `
-              <!-- Image Upload Drop Zone (Editing Mode) -->
-              <div id="image-drop-zone" 
-                   class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer">
-                <div class="space-y-2">
-                  <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
-                  <div class="text-lg font-medium text-gray-700">Upload Car Images</div>
-                  <div class="text-sm text-gray-500">
-                    Drag and drop images here, or click to select files<br>
-                    <span class="font-medium">Maximum 8 images, 5MB per image</span><br>
-                    Supported formats: JPEG, PNG, WebP
-                  </div>
-                </div>
-                <input type="file" id="image-files" multiple accept="image/*" class="hidden">
-              </div>
-            ` : `
-              <!-- Image Upload Info (New Listing Mode) -->
-              <div class="border-2 border-dashed border-blue-200 bg-blue-50 rounded-lg p-6 text-center">
-                <div class="space-y-2">
-                  <i class="fas fa-info-circle text-4xl text-blue-500"></i>
-                  <div class="text-lg font-medium text-blue-700">Image Upload Available After Saving</div>
-                  <div class="text-sm text-blue-600">
-                    Save your car listing first, then you'll be able to upload up to 8 images<br>
-                    <span class="font-medium">Don't worry - you can add images right after creating the listing!</span>
-                  </div>
+            <!-- Image Upload Drop Zone (Always Available) -->
+            <div id="image-drop-zone" 
+                 class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors cursor-pointer">
+              <div class="space-y-2">
+                <i class="fas fa-cloud-upload-alt text-4xl text-gray-400"></i>
+                <div class="text-lg font-medium text-gray-700">Upload Car Images</div>
+                <div class="text-sm text-gray-500">
+                  Drag and drop images here, or click to select files<br>
+                  <span class="font-medium">Maximum 8 images, 5MB per image</span><br>
+                  Supported formats: JPEG, PNG, WebP
                 </div>
               </div>
-              <!-- Hidden file input for form validation -->
-              <input type="file" id="image-files" multiple accept="image/*" class="hidden" disabled>
-            `}
+              <input type="file" id="image-files" multiple accept="image/*" class="hidden">
+            </div>
 
             <!-- Image Counter -->
             <div class="flex justify-between items-center text-sm text-gray-600">
@@ -1800,9 +1784,13 @@ const SellCar = {
 
         let response;
         if (this.editingCarId) {
-          response = await axios.put(`/cars/${this.editingCarId}`, carData);
+          response = await axios.put(`/api/cars/${this.editingCarId}`, carData, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          });
         } else {
-          response = await axios.post('/cars', carData);
+          response = await axios.post('/api/cars', carData, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          });
         }
 
         if (response.data.success) {
@@ -1815,11 +1803,20 @@ const SellCar = {
               window.location.href = `/car/${carId}`;
             }, 1000);
           } else {
-            // New car created - redirect to edit mode to add images
-            Utils.showToast('Car listing created successfully! Now you can add images.', 'success');
-            setTimeout(() => {
-              window.location.href = `/sell?edit=${carId}`;
-            }, 1500);
+            // New car created - upload any temporary images
+            Utils.showToast('Car listing created successfully!', 'success');
+            
+            // Upload temporary images if any exist
+            if (ImageUpload.tempImages.length > 0) {
+              await ImageUpload.uploadAllTempImages(carId);
+              setTimeout(() => {
+                window.location.href = `/car/${carId}`;
+              }, 2000);
+            } else {
+              setTimeout(() => {
+                window.location.href = `/car/${carId}`;
+              }, 1000);
+            }
           }
         } else {
           throw new Error(response.data.error);
@@ -1848,6 +1845,100 @@ const SellCar = {
     }
   },
 
+  async loadCarForEditing(carId) {
+    try {
+      const response = await axios.get(`/api/cars/${carId}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        const car = response.data.data;
+        
+        // Populate form fields with car data
+        this.populateFormWithCarData(car);
+        
+        // Update form title
+        const formTitle = document.querySelector('h1, h2');
+        if (formTitle) {
+          formTitle.textContent = `Edit: ${car.title}`;
+        }
+      } else {
+        throw new Error(response.data.error);
+      }
+    } catch (error) {
+      console.error('Error loading car for editing:', error);
+      Utils.showToast('Failed to load car for editing', 'error');
+      // Redirect to sell page if can't load car
+      setTimeout(() => {
+        window.location.href = '/sell';
+      }, 2000);
+    }
+  },
+
+  populateFormWithCarData(car) {
+    const form = document.getElementById('sell-car-form');
+    if (!form) return;
+
+    // Basic car information
+    this.setFormValue(form, 'title', car.title);
+    this.setFormValue(form, 'make', car.make);
+    this.setFormValue(form, 'model', car.model);
+    this.setFormValue(form, 'year', car.year);
+    this.setFormValue(form, 'mileage', car.mileage);
+    this.setFormValue(form, 'fuel_type', car.fuel_type);
+    this.setFormValue(form, 'transmission', car.transmission);
+    this.setFormValue(form, 'body_type', car.body_type);
+    this.setFormValue(form, 'engine_size', car.engine_size);
+    this.setFormValue(form, 'doors', car.doors);
+    this.setFormValue(form, 'color', car.color);
+
+    // Price (convert from pence to pounds)
+    this.setFormValue(form, 'price', car.price / 100);
+    
+    // Checkbox for negotiable
+    const negotiableCheckbox = form.querySelector('input[name="is_negotiable"]');
+    if (negotiableCheckbox) {
+      negotiableCheckbox.checked = car.is_negotiable;
+    }
+
+    // Location and details
+    this.setFormValue(form, 'location', car.location);
+    this.setFormValue(form, 'postcode', car.postcode);
+    this.setFormValue(form, 'mot_expiry', car.mot_expiry);
+    this.setFormValue(form, 'service_history', car.service_history);
+    this.setFormValue(form, 'description', car.description);
+    this.setFormValue(form, 'condition_notes', car.condition_notes);
+
+    // Features - populate checkboxes
+    if (car.features && Array.isArray(car.features)) {
+      car.features.forEach(feature => {
+        const checkbox = form.querySelector(`input[type="checkbox"][value="${feature}"]`);
+        if (checkbox) {
+          checkbox.checked = true;
+        }
+      });
+    }
+
+    // Trigger model dropdown update for make/model dependency
+    setTimeout(() => {
+      const makeSelect = form.querySelector('select[name="make"]');
+      const modelSelect = form.querySelector('select[name="model"]');
+      if (makeSelect && modelSelect) {
+        Cars.populateModelDropdown(makeSelect, modelSelect);
+        setTimeout(() => {
+          this.setFormValue(form, 'model', car.model);
+        }, 100);
+      }
+    }, 100);
+  },
+
+  setFormValue(form, name, value) {
+    const field = form.querySelector(`[name="${name}"]`);
+    if (field && value !== null && value !== undefined) {
+      field.value = value;
+    }
+  },
+
   setupImageUpload() {
     // Initialize image upload with car ID if editing
     ImageUpload.init(this.editingCarId);
@@ -1859,9 +1950,11 @@ const ImageUpload = {
   maxFiles: 8,
   maxFileSize: 5 * 1024 * 1024, // 5MB
   allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+  tempImages: [], // Store images temporarily during creation
 
   init(carId = null) {
     this.carId = carId;
+    this.tempImages = []; // Reset temp images
     this.setupDropZone();
     this.setupFileInput();
     if (carId) {
@@ -1944,11 +2037,16 @@ const ImageUpload = {
   },
 
   async uploadFile(file) {
-    if (!this.carId) {
-      showToast('Please save your car listing first, then you can upload images from the editing mode', 'info');
-      return;
+    if (this.carId) {
+      // Car exists - upload directly
+      return this.uploadDirectly(file);
+    } else {
+      // No car ID yet - store temporarily
+      return this.storeTemporarily(file);
     }
+  },
 
+  async uploadDirectly(file) {
     const formData = new FormData();
     formData.append('image', file);
 
@@ -1982,6 +2080,104 @@ const ImageUpload = {
       imagePreview.remove();
       showToast(error.response?.data?.error || 'Failed to upload image', 'error');
     }
+  },
+
+  storeTemporarily(file) {
+    // Store file in memory for later upload
+    const tempId = Date.now() + '_' + Math.random().toString(36).substring(7);
+    const tempImage = {
+      id: tempId,
+      file: file,
+      preview: null
+    };
+
+    // Add to temp storage
+    this.tempImages.push(tempImage);
+
+    // Create preview
+    const imagePreview = this.createTempImagePreview(file, tempId);
+    const container = document.getElementById('uploaded-images');
+    container.appendChild(imagePreview);
+
+    showToast('Image ready for upload. Save your listing to upload all images.', 'info');
+  },
+
+  createTempImagePreview(file, tempId) {
+    const div = document.createElement('div');
+    div.className = 'uploaded-image temp-image relative bg-gray-100 rounded-lg overflow-hidden';
+    div.dataset.tempId = tempId;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      div.innerHTML = `
+        <div class="aspect-video relative">
+          <img src="${e.target.result}" alt="Preview" class="w-full h-full object-cover">
+          <div class="absolute top-2 right-2">
+            <span class="bg-orange-500 text-white px-2 py-1 rounded text-xs font-medium">Ready to upload</span>
+          </div>
+          <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+            <button onclick="ImageUpload.removeTempImage('${tempId}', this)" 
+                    class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">
+              Remove
+            </button>
+          </div>
+        </div>
+      `;
+    };
+    reader.readAsDataURL(file);
+
+    return div;
+  },
+
+  removeTempImage(tempId, button) {
+    // Remove from temp storage
+    this.tempImages = this.tempImages.filter(img => img.id !== tempId);
+    
+    // Remove from DOM
+    const preview = button.closest('.uploaded-image');
+    if (preview) {
+      preview.remove();
+    }
+    
+    showToast('Image removed', 'info');
+  },
+
+  async uploadAllTempImages(carId) {
+    if (this.tempImages.length === 0) return;
+
+    showToast(`Uploading ${this.tempImages.length} images...`, 'info');
+
+    for (const tempImage of this.tempImages) {
+      try {
+        const formData = new FormData();
+        formData.append('image', tempImage.file);
+
+        await axios.post(`/api/images/upload/car/${carId}`, formData, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+
+        // Update preview to show uploaded status
+        const preview = document.querySelector(`[data-temp-id="${tempImage.id}"]`);
+        if (preview) {
+          const badge = preview.querySelector('.bg-orange-500');
+          if (badge) {
+            badge.className = 'bg-green-500 text-white px-2 py-1 rounded text-xs font-medium';
+            badge.textContent = 'Uploaded';
+          }
+        }
+
+      } catch (error) {
+        console.error('Error uploading temp image:', error);
+        showToast('Some images failed to upload', 'error');
+      }
+    }
+
+    // Clear temp images after upload
+    this.tempImages = [];
+    showToast('All images uploaded successfully!', 'success');
   },
 
   createImagePreview(file) {
