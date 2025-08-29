@@ -53,7 +53,7 @@ export class DatabaseService {
     try {
       const result = await this.db.prepare(`
         SELECT id, email, full_name, phone, location, is_dealer, is_verified, 
-               avatar_url, created_at, updated_at 
+               is_admin, is_suspended, avatar_url, created_at, updated_at 
         FROM users WHERE id = ?
       `).bind(id).first()
 

@@ -10,6 +10,7 @@ import cars from './routes/cars'
 import messages from './routes/messages'
 import users from './routes/users'
 import images from './routes/images'
+import admin from './routes/admin'
 
 const app = new Hono<{ Bindings: CloudflareBindings }>()
 
@@ -32,6 +33,7 @@ app.route('/api/cars', cars)
 app.route('/api/messages', messages)
 app.route('/api/users', users)
 app.route('/api/images', images)
+app.route('/api/admin', admin)
 
 // API health check
 app.get('/api/health', async (c) => {
@@ -867,49 +869,135 @@ app.get('/profile/:id', async (c) => {
   )
 })
 
-// Admin Panel (protected route)
+// Enhanced Admin Panel (protected route)
 app.get('/admin', (c) => {
   return c.render(
-    <div class="min-h-screen bg-gray-100">
-      <div class="container mx-auto px-4 py-8">
-        <div class="flex flex-col lg:flex-row gap-8">
-          {/* Admin Sidebar */}
-          <div class="lg:w-1/4">
-            <div class="bg-white rounded-lg shadow-md p-6">
-              <h2 class="text-xl font-bold mb-4 text-red-600">
-                <i class="fas fa-shield-alt mr-2"></i>
-                Admin Panel
-              </h2>
+    <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Admin Header */}
+      <div class="bg-white shadow-sm border-b border-gray-200">
+        <div class="container mx-auto px-4 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+              <div class="bg-red-100 rounded-lg p-2">
+                <i class="fas fa-shield-alt text-red-600 text-xl"></i>
+              </div>
+              <div>
+                <h1 class="text-2xl font-bold text-gray-900">WightCars Admin</h1>
+                <p class="text-sm text-gray-600">System Administration Dashboard</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-4">
+              <div id="admin-alerts" class="hidden">
+                <div class="bg-yellow-100 text-yellow-800 px-3 py-2 rounded-md text-sm">
+                  <i class="fas fa-exclamation-triangle mr-2"></i>
+                  <span id="alert-count">0</span> items need attention
+                </div>
+              </div>
+              <div class="text-sm text-gray-500">
+                Last updated: <span id="last-updated">Loading...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container mx-auto px-4 py-6">
+        <div class="flex flex-col lg:flex-row gap-6">
+          {/* Enhanced Admin Sidebar */}
+          <div class="lg:w-64 flex-shrink-0">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div class="p-4 bg-gradient-to-r from-red-600 to-red-700 text-white">
+                <h2 class="font-semibold text-lg">Navigation</h2>
+              </div>
               
-              <nav class="space-y-2">
-                <a href="#dashboard" class="admin-nav-item active flex items-center px-4 py-2 text-red-600 bg-red-50 rounded-lg">
-                  <i class="fas fa-chart-bar mr-3"></i>
+              <nav class="p-4 space-y-1">
+                <a href="#dashboard" class="admin-nav-item active flex items-center px-3 py-2.5 text-red-600 bg-red-50 rounded-lg font-medium transition-colors">
+                  <i class="fas fa-chart-line mr-3 text-sm"></i>
                   Dashboard
+                  <div class="ml-auto">
+                    <span class="bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full font-medium">Live</span>
+                  </div>
                 </a>
-                <a href="#users" class="admin-nav-item flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                  <i class="fas fa-users mr-3"></i>
-                  Users
+                
+                <a href="#users" class="admin-nav-item flex items-center px-3 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-red-600 rounded-lg transition-colors">
+                  <i class="fas fa-users mr-3 text-sm"></i>
+                  User Management
+                  <span class="ml-auto bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full" id="users-count">0</span>
                 </a>
-                <a href="#listings" class="admin-nav-item flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                  <i class="fas fa-car mr-3"></i>
-                  Listings
+                
+                <a href="#moderation" class="admin-nav-item flex items-center px-3 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-red-600 rounded-lg transition-colors">
+                  <i class="fas fa-gavel mr-3 text-sm"></i>
+                  Listing Moderation
+                  <span class="ml-auto bg-yellow-100 text-yellow-600 text-xs px-2 py-1 rounded-full" id="moderation-count">0</span>
                 </a>
-                <a href="#messages" class="admin-nav-item flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                  <i class="fas fa-envelope mr-3"></i>
-                  Messages
+                
+                <a href="#reports" class="admin-nav-item flex items-center px-3 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-red-600 rounded-lg transition-colors">
+                  <i class="fas fa-flag mr-3 text-sm"></i>
+                  Reports & Flags
+                  <span class="ml-auto bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full" id="reports-count">0</span>
                 </a>
-                <a href="#reports" class="admin-nav-item flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                  <i class="fas fa-flag mr-3"></i>
-                  Reports
+                
+                <a href="#analytics" class="admin-nav-item flex items-center px-3 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-red-600 rounded-lg transition-colors">
+                  <i class="fas fa-chart-bar mr-3 text-sm"></i>
+                  Analytics & Insights
                 </a>
+                
+                <a href="#settings" class="admin-nav-item flex items-center px-3 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-red-600 rounded-lg transition-colors">
+                  <i class="fas fa-cogs mr-3 text-sm"></i>
+                  Site Settings
+                </a>
+                
+                <div class="border-t border-gray-200 my-3 pt-3">
+                  <a href="#logs" class="admin-nav-item flex items-center px-3 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-red-600 rounded-lg transition-colors">
+                    <i class="fas fa-clipboard-list mr-3 text-sm"></i>
+                    Activity Logs
+                  </a>
+                  
+                  <a href="/dashboard" class="flex items-center px-3 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-blue-600 rounded-lg transition-colors">
+                    <i class="fas fa-arrow-left mr-3 text-sm"></i>
+                    Back to Site
+                  </a>
+                </div>
               </nav>
+            </div>
+
+            {/* Quick Stats Sidebar */}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 mt-6 overflow-hidden">
+              <div class="p-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+                <h3 class="font-semibold">Quick Stats</h3>
+              </div>
+              <div class="p-4 space-y-3" id="quick-stats">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm text-gray-600">Users Online</span>
+                  <span class="font-semibold text-green-600">--</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-sm text-gray-600">Today's Listings</span>
+                  <span class="font-semibold text-blue-600">--</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-sm text-gray-600">Pending Actions</span>
+                  <span class="font-semibold text-red-600">--</span>
+                </div>
+              </div>
             </div>
           </div>
           
-          {/* Admin Content */}
-          <div class="lg:w-3/4">
-            <div id="admin-content">
-              {/* Admin content will be loaded by JavaScript */}
+          {/* Enhanced Admin Content Area */}
+          <div class="flex-1 min-w-0">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 min-h-[600px]">
+              <div id="admin-content" class="p-6">
+                {/* Enhanced admin content will be loaded by JavaScript */}
+                <div class="flex items-center justify-center h-96">
+                  <div class="text-center">
+                    <div class="animate-pulse">
+                      <div class="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4"></div>
+                      <div class="h-4 bg-gray-200 rounded w-32 mx-auto mb-2"></div>
+                      <div class="h-4 bg-gray-200 rounded w-48 mx-auto"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

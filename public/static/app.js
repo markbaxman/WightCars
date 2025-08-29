@@ -2480,6 +2480,639 @@ const UserProfile = {
   }
 };
 
+// Enhanced Admin Panel Functions
+const AdminPanel = {
+  currentSection: 'dashboard',
+  refreshInterval: null,
+
+  async init() {
+    if (!AppState.user || !AppState.user.is_admin) {
+      window.location.href = '/login?redirect=/admin';
+      return;
+    }
+
+    this.setupNavigation();
+    this.loadSection('dashboard');
+    this.startAutoRefresh();
+  },
+
+  setupNavigation() {
+    document.querySelectorAll('.admin-nav-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const section = item.getAttribute('href').substring(1);
+        this.loadSection(section);
+      });
+    });
+  },
+
+  async loadSection(section) {
+    this.currentSection = section;
+    
+    // Update navigation
+    document.querySelectorAll('.admin-nav-item').forEach(item => {
+      item.classList.remove('active', 'text-red-600', 'bg-red-50', 'font-medium');
+      item.classList.add('text-gray-700');
+      
+      if (item.getAttribute('href') === `#${section}`) {
+        item.classList.add('active', 'text-red-600', 'bg-red-50', 'font-medium');
+        item.classList.remove('text-gray-700');
+      }
+    });
+
+    // Load section content
+    const container = document.getElementById('admin-content');
+    container.innerHTML = '<div class="flex items-center justify-center h-96"><div class="text-center"><i class="fas fa-spinner fa-spin text-3xl text-gray-400 mb-4"></i><p class="text-gray-500">Loading...</p></div></div>';
+
+    switch (section) {
+      case 'dashboard':
+        await this.loadDashboard();
+        break;
+      case 'users':
+        await this.loadUserManagement();
+        break;
+      case 'moderation':
+        await this.loadModerationQueue();
+        break;
+      case 'reports':
+        await this.loadReports();
+        break;
+      case 'analytics':
+        await this.loadAnalytics();
+        break;
+      case 'settings':
+        await this.loadSettings();
+        break;
+      case 'logs':
+        await this.loadActivityLogs();
+        break;
+      default:
+        container.innerHTML = '<div class="text-center py-12"><h2 class="text-2xl font-semibold text-gray-600">Section not found</h2></div>';
+    }
+  },
+
+  async loadDashboard() {
+    try {
+      const response = await axios.get('/api/admin/dashboard', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        this.renderDashboard(response.data.data);
+        this.updateQuickStats(response.data.data);
+        this.updateAlertCounts(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error loading admin dashboard:', error);
+      this.renderError('Failed to load dashboard data');
+    }
+  },
+
+  renderDashboard(data) {
+    const container = document.getElementById('admin-content');
+    const userStats = data.userStats || {};
+    const carStats = data.carStats || {};
+    const messageStats = data.messageStats || {};
+    
+    container.innerHTML = `
+      <div class="space-y-6">
+        <!-- Dashboard Header -->
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Admin Dashboard</h2>
+            <p class="text-gray-600">Overview of site activity and key metrics</p>
+          </div>
+          <button onclick="AdminPanel.refreshDashboard()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+            <i class="fas fa-sync-alt mr-2"></i>Refresh
+          </button>
+        </div>
+
+        <!-- Key Metrics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <!-- Users Card -->
+          <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-blue-100 text-sm font-medium">Total Users</p>
+                <p class="text-3xl font-bold">${formatNumber(userStats.total_users || 0)}</p>
+                <p class="text-blue-100 text-sm mt-1">+${userStats.new_today || 0} today</p>
+              </div>
+              <div class="bg-blue-400 bg-opacity-30 rounded-full p-3">
+                <i class="fas fa-users text-xl"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cars Card -->
+          <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-green-100 text-sm font-medium">Active Listings</p>
+                <p class="text-3xl font-bold">${formatNumber(carStats.active_cars || 0)}</p>
+                <p class="text-green-100 text-sm mt-1">+${carStats.new_today || 0} today</p>
+              </div>
+              <div class="bg-green-400 bg-opacity-30 rounded-full p-3">
+                <i class="fas fa-car text-xl"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Messages Card -->
+          <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-purple-100 text-sm font-medium">Messages</p>
+                <p class="text-3xl font-bold">${formatNumber(messageStats.total_messages || 0)}</p>
+                <p class="text-purple-100 text-sm mt-1">+${messageStats.new_today || 0} today</p>
+              </div>
+              <div class="bg-purple-400 bg-opacity-30 rounded-full p-3">
+                <i class="fas fa-envelope text-xl"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Moderation Card -->
+          <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-red-100 text-sm font-medium">Pending Review</p>
+                <p class="text-3xl font-bold">${formatNumber(data.pendingModeration || 0)}</p>
+                <p class="text-red-100 text-sm mt-1">${data.pendingReports || 0} reports</p>
+              </div>
+              <div class="bg-red-400 bg-opacity-30 rounded-full p-3">
+                <i class="fas fa-flag text-xl"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Today's Activity & Recent Actions -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Today's Activity -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Today's Activity</h3>
+            <div class="space-y-4">
+              ${(data.todayStats || []).map(stat => `
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div class="flex items-center">
+                    <div class="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                    <span class="text-gray-700">${stat.label}</span>
+                  </div>
+                  <span class="font-semibold text-gray-900">${stat.count}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Recent Admin Actions -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Admin Actions</h3>
+            <div class="space-y-3">
+              ${(data.recentActivity || []).length > 0 ? data.recentActivity.map(action => `
+                <div class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg">
+                  <div>
+                    <p class="text-sm font-medium text-gray-900">${action.action.replace('_', ' ')}</p>
+                    <p class="text-xs text-gray-500">${action.admin_name} • ${dayjs(action.created_at).format('MMM D, HH:mm')}</p>
+                  </div>
+                  <span class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full">${action.target_type}</span>
+                </div>
+              `).join('') : `
+                <div class="text-center py-8 text-gray-500">
+                  <i class="fas fa-clipboard-list text-3xl mb-2"></i>
+                  <p>No recent admin activity</p>
+                </div>
+              `}
+            </div>
+          </div>
+        </div>
+
+        <!-- Site Health Status -->
+        <div class="bg-white border border-gray-200 rounded-xl p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Site Health Status</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="text-center p-4 bg-green-50 rounded-lg">
+              <div class="text-green-600 text-2xl mb-2"><i class="fas fa-check-circle"></i></div>
+              <p class="font-semibold text-green-800">System Online</p>
+              <p class="text-sm text-green-600">All services operational</p>
+            </div>
+            <div class="text-center p-4 ${data.pendingModeration > 10 ? 'bg-yellow-50' : 'bg-green-50'} rounded-lg">
+              <div class="${data.pendingModeration > 10 ? 'text-yellow-600' : 'text-green-600'} text-2xl mb-2">
+                <i class="fas ${data.pendingModeration > 10 ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i>
+              </div>
+              <p class="font-semibold ${data.pendingModeration > 10 ? 'text-yellow-800' : 'text-green-800'}">Moderation Queue</p>
+              <p class="text-sm ${data.pendingModeration > 10 ? 'text-yellow-600' : 'text-green-600'}">
+                ${data.pendingModeration > 10 ? 'High volume' : 'Under control'}
+              </p>
+            </div>
+            <div class="text-center p-4 ${data.pendingReports > 5 ? 'bg-red-50' : 'bg-green-50'} rounded-lg">
+              <div class="${data.pendingReports > 5 ? 'text-red-600' : 'text-green-600'} text-2xl mb-2">
+                <i class="fas ${data.pendingReports > 5 ? 'fa-exclamation-circle' : 'fa-check-circle'}"></i>
+              </div>
+              <p class="font-semibold ${data.pendingReports > 5 ? 'text-red-800' : 'text-green-800'}">User Reports</p>
+              <p class="text-sm ${data.pendingReports > 5 ? 'text-red-600' : 'text-green-600'}">
+                ${data.pendingReports > 5 ? 'Needs attention' : 'All resolved'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Update last updated time
+    document.getElementById('last-updated').textContent = dayjs().format('MMM D, HH:mm');
+  },
+
+  async refreshDashboard() {
+    await this.loadDashboard();
+    showToast('Dashboard refreshed', 'success');
+  },
+
+  updateQuickStats(data) {
+    const quickStats = document.getElementById('quick-stats');
+    if (!quickStats) return;
+
+    const userStats = data.userStats || {};
+    const carStats = data.carStats || {};
+    const pending = (data.pendingModeration || 0) + (data.pendingReports || 0);
+
+    quickStats.innerHTML = `
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-600">Total Users</span>
+        <span class="font-semibold text-blue-600">${formatNumber(userStats.total_users || 0)}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-600">Today's Listings</span>
+        <span class="font-semibold text-green-600">${carStats.new_today || 0}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm text-gray-600">Pending Actions</span>
+        <span class="font-semibold ${pending > 0 ? 'text-red-600' : 'text-green-600'}">${pending}</span>
+      </div>
+    `;
+  },
+
+  updateAlertCounts(data) {
+    // Update sidebar counters
+    const counters = {
+      'users-count': data.userStats?.total_users || 0,
+      'moderation-count': data.pendingModeration || 0,
+      'reports-count': data.pendingReports || 0
+    };
+
+    Object.entries(counters).forEach(([id, count]) => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.textContent = formatNumber(count);
+        
+        // Update colors based on urgency
+        if (id === 'moderation-count' || id === 'reports-count') {
+          if (count > 0) {
+            element.className = 'ml-auto bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full';
+          } else {
+            element.className = 'ml-auto bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full';
+          }
+        }
+      }
+    });
+
+    // Update header alert
+    const alertContainer = document.getElementById('admin-alerts');
+    const alertCount = document.getElementById('alert-count');
+    const totalAlerts = (data.pendingModeration || 0) + (data.pendingReports || 0);
+    
+    if (totalAlerts > 0) {
+      alertContainer.classList.remove('hidden');
+      alertCount.textContent = totalAlerts;
+    } else {
+      alertContainer.classList.add('hidden');
+    }
+  },
+
+  async loadUserManagement() {
+    try {
+      const response = await axios.get('/api/admin/users?page=1&limit=20', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        this.renderUserManagement(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error loading user management:', error);
+      this.renderError('Failed to load user data');
+    }
+  },
+
+  renderUserManagement(data) {
+    const container = document.getElementById('admin-content');
+    
+    container.innerHTML = `
+      <div class="space-y-6">
+        <!-- User Management Header -->
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">User Management</h2>
+            <p class="text-gray-600">Manage user accounts, verification, and permissions</p>
+          </div>
+          <div class="flex space-x-3">
+            <div class="relative">
+              <input type="text" id="user-search" placeholder="Search users..." 
+                     class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500">
+              <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+            </div>
+            <select id="user-status-filter" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500">
+              <option value="">All Users</option>
+              <option value="verified">Verified</option>
+              <option value="unverified">Unverified</option>
+              <option value="suspended">Suspended</option>
+              <option value="dealer">Dealers</option>
+              <option value="admin">Admins</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">User</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Activity</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Joined</th>
+                  <th class="px-6 py-4 text-center text-sm font-semibold text-gray-900">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                ${(data.users || []).map(user => `
+                  <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4">
+                      <div class="flex items-center">
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                          ${user.full_name.charAt(0).toUpperCase()}
+                        </div>
+                        <div class="ml-3">
+                          <p class="font-medium text-gray-900">${user.full_name}</p>
+                          <p class="text-sm text-gray-500">${user.email}</p>
+                          <p class="text-xs text-gray-400">${user.location || 'No location'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <div class="space-y-1">
+                        ${user.is_verified ? '<span class="inline-flex px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Verified</span>' : '<span class="inline-flex px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">Unverified</span>'}
+                        ${user.is_dealer ? '<span class="inline-flex px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">Dealer</span>' : ''}
+                        ${user.is_admin ? '<span class="inline-flex px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">Admin</span>' : ''}
+                        ${user.is_suspended ? '<span class="inline-flex px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">Suspended</span>' : ''}
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-900">
+                      <div class="space-y-1">
+                        <div>${user.car_count || 0} listings</div>
+                        <div class="text-xs text-gray-500">${user.active_cars || 0} active</div>
+                        <div class="text-xs text-gray-500">${user.message_count || 0} messages</div>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500">
+                      ${dayjs(user.created_at).format('MMM D, YYYY')}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                      <div class="flex items-center justify-center space-x-2">
+                        ${!user.is_verified ? `
+                          <button onclick="AdminPanel.verifyUser(${user.id})" 
+                                  class="text-green-600 hover:text-green-800 text-sm font-medium">
+                            Verify
+                          </button>
+                        ` : ''}
+                        ${!user.is_suspended ? `
+                          <button onclick="AdminPanel.suspendUser(${user.id})" 
+                                  class="text-red-600 hover:text-red-800 text-sm font-medium">
+                            Suspend
+                          </button>
+                        ` : `
+                          <button onclick="AdminPanel.unsuspendUser(${user.id})" 
+                                  class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            Unsuspend
+                          </button>
+                        `}
+                        <button onclick="AdminPanel.viewUserDetails(${user.id})" 
+                                class="text-gray-600 hover:text-gray-800 text-sm font-medium">
+                          View
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          ${data.pagination && data.pagination.pages > 1 ? `
+            <div class="bg-gray-50 px-6 py-3 border-t border-gray-200">
+              <div class="flex items-center justify-between">
+                <div class="text-sm text-gray-700">
+                  Showing ${((data.pagination.page - 1) * data.pagination.limit) + 1} to ${Math.min(data.pagination.page * data.pagination.limit, data.pagination.total)} of ${data.pagination.total} users
+                </div>
+                <div class="flex space-x-2">
+                  <!-- Pagination buttons would go here -->
+                </div>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+
+    // Setup search and filter handlers
+    this.setupUserFilters();
+  },
+
+  setupUserFilters() {
+    const searchInput = document.getElementById('user-search');
+    const statusFilter = document.getElementById('user-status-filter');
+
+    let searchTimeout;
+    
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          this.filterUsers(e.target.value, statusFilter?.value);
+        }, 500);
+      });
+    }
+
+    if (statusFilter) {
+      statusFilter.addEventListener('change', (e) => {
+        this.filterUsers(searchInput?.value, e.target.value);
+      });
+    }
+  },
+
+  async filterUsers(search = '', status = '') {
+    try {
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (status) params.append('status', status);
+      params.append('page', '1');
+      params.append('limit', '20');
+
+      const response = await axios.get(`/api/admin/users?${params}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        this.renderUserManagement(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error filtering users:', error);
+    }
+  },
+
+  async verifyUser(userId) {
+    const notes = prompt('Verification notes (optional):');
+    if (notes === null) return; // User cancelled
+
+    try {
+      const response = await axios.post(`/api/admin/users/${userId}/verify`, {
+        notes: notes
+      }, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        showToast('User verified successfully', 'success');
+        this.loadUserManagement(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error verifying user:', error);
+      showToast('Failed to verify user', 'error');
+    }
+  },
+
+  async suspendUser(userId) {
+    const reason = prompt('Suspension reason:');
+    if (!reason) return;
+
+    try {
+      const response = await axios.post(`/api/admin/users/${userId}/suspend`, {
+        reason: reason
+      }, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        showToast('User suspended successfully', 'success');
+        this.loadUserManagement(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error suspending user:', error);
+      showToast('Failed to suspend user', 'error');
+    }
+  },
+
+  async unsuspendUser(userId) {
+    if (!confirm('Are you sure you want to unsuspend this user?')) return;
+
+    try {
+      const response = await axios.post(`/api/admin/users/${userId}/unsuspend`, {}, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        showToast('User unsuspended successfully', 'success');
+        this.loadUserManagement(); // Refresh the list
+      }
+    } catch (error) {
+      console.error('Error unsuspending user:', error);
+      showToast('Failed to unsuspend user', 'error');
+    }
+  },
+
+  viewUserDetails(userId) {
+    window.open(`/profile/${userId}`, '_blank');
+  },
+
+  async loadModerationQueue() {
+    // Implementation for moderation queue
+    document.getElementById('admin-content').innerHTML = `
+      <div class="text-center py-12">
+        <i class="fas fa-gavel text-4xl text-gray-400 mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-600">Moderation Queue</h3>
+        <p class="text-gray-500 mt-2">Car listing moderation system coming soon...</p>
+      </div>
+    `;
+  },
+
+  async loadReports() {
+    // Implementation for reports management
+    document.getElementById('admin-content').innerHTML = `
+      <div class="text-center py-12">
+        <i class="fas fa-flag text-4xl text-gray-400 mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-600">Reports Management</h3>
+        <p class="text-gray-500 mt-2">User reports and flagging system coming soon...</p>
+      </div>
+    `;
+  },
+
+  async loadAnalytics() {
+    // Implementation for analytics
+    document.getElementById('admin-content').innerHTML = `
+      <div class="text-center py-12">
+        <i class="fas fa-chart-bar text-4xl text-gray-400 mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-600">Analytics & Insights</h3>
+        <p class="text-gray-500 mt-2">Detailed analytics dashboard coming soon...</p>
+      </div>
+    `;
+  },
+
+  async loadSettings() {
+    // Implementation for site settings
+    document.getElementById('admin-content').innerHTML = `
+      <div class="text-center py-12">
+        <i class="fas fa-cogs text-4xl text-gray-400 mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-600">Site Settings</h3>
+        <p class="text-gray-500 mt-2">Site configuration panel coming soon...</p>
+      </div>
+    `;
+  },
+
+  async loadActivityLogs() {
+    // Implementation for activity logs
+    document.getElementById('admin-content').innerHTML = `
+      <div class="text-center py-12">
+        <i class="fas fa-clipboard-list text-4xl text-gray-400 mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-600">Activity Logs</h3>
+        <p class="text-gray-500 mt-2">Admin activity logging system coming soon...</p>
+      </div>
+    `;
+  },
+
+  startAutoRefresh() {
+    // Refresh dashboard data every 5 minutes
+    this.refreshInterval = setInterval(() => {
+      if (this.currentSection === 'dashboard') {
+        this.loadDashboard();
+      }
+    }, 5 * 60 * 1000);
+  },
+
+  renderError(message) {
+    document.getElementById('admin-content').innerHTML = `
+      <div class="text-center py-12">
+        <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
+        <h3 class="text-xl font-semibold text-red-600">Error</h3>
+        <p class="text-gray-500 mt-2">${message}</p>
+        <button onclick="window.location.reload()" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
+          Refresh Page
+        </button>
+      </div>
+    `;
+  }
+};
+
 // Page Initialization
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('WightCars app initializing...');
@@ -2538,6 +3171,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (userId) {
         await UserProfile.loadProfile(userId);
       }
+    } else if (path === '/admin') {
+      // Enhanced Admin panel page
+      await AdminPanel.init();
     } else if (path === '/login') {
       // Login page
       Forms.setupLogin();

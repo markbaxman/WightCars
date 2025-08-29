@@ -24,6 +24,8 @@ export interface User extends BaseEntity {
   location?: string;
   is_dealer: boolean;
   is_verified: boolean;
+  is_admin: boolean;
+  is_suspended: boolean;
   avatar_url?: string;
 }
 
