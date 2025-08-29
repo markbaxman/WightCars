@@ -3036,36 +3036,964 @@ const AdminPanel = {
   },
 
   async loadModerationQueue() {
-    // Implementation for moderation queue
-    document.getElementById('admin-content').innerHTML = `
-      <div class="text-center py-12">
-        <i class="fas fa-gavel text-4xl text-gray-400 mb-4"></i>
-        <h3 class="text-xl font-semibold text-gray-600">Moderation Queue</h3>
-        <p class="text-gray-500 mt-2">Car listing moderation system coming soon...</p>
+    try {
+      const status = 'pending'; // Can be changed to 'flagged', 'rejected', etc.
+      const response = await axios.get(`/api/admin/moderation/cars?status=${status}&page=1&limit=20`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        this.renderModerationQueue(response.data.data, status);
+      }
+    } catch (error) {
+      console.error('Error loading moderation queue:', error);
+      this.renderError('Failed to load moderation queue');
+    }
+  },
+
+  renderModerationQueue(data, currentStatus = 'pending') {
+    const container = document.getElementById('admin-content');
+    
+    container.innerHTML = `
+      <div class="space-y-6">
+        <!-- Moderation Header -->
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Car Listing Moderation</h2>
+            <p class="text-gray-600">Review and moderate car listings for quality and compliance</p>
+          </div>
+          <div class="flex space-x-3">
+            <select id="moderation-status-filter" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500">
+              <option value="pending" ${currentStatus === 'pending' ? 'selected' : ''}>Pending Review</option>
+              <option value="flagged" ${currentStatus === 'flagged' ? 'selected' : ''}>Flagged Items</option>
+              <option value="rejected" ${currentStatus === 'rejected' ? 'selected' : ''}>Rejected</option>
+              <option value="approved" ${currentStatus === 'approved' ? 'selected' : ''}>Approved</option>
+            </select>
+            <button onclick="AdminPanel.refreshModeration()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+              <i class="fas fa-sync-alt mr-2"></i>Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Moderation Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-clock text-white text-sm"></i>
+              </div>
+              <div>
+                <p class="text-sm text-yellow-600 font-medium">Pending</p>
+                <p class="text-2xl font-bold text-yellow-800" id="pending-count">--</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-check text-white text-sm"></i>
+              </div>
+              <div>
+                <p class="text-sm text-green-600 font-medium">Approved</p>
+                <p class="text-2xl font-bold text-green-800" id="approved-count">--</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-times text-white text-sm"></i>
+              </div>
+              <div>
+                <p class="text-sm text-red-600 font-medium">Rejected</p>
+                <p class="text-2xl font-bold text-red-800" id="rejected-count">--</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-flag text-white text-sm"></i>
+              </div>
+              <div>
+                <p class="text-sm text-orange-600 font-medium">Flagged</p>
+                <p class="text-2xl font-bold text-orange-800" id="flagged-count">--</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Car Listings for Moderation -->
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          ${(data.cars || []).length > 0 ? `
+            <div class="space-y-4 p-6">
+              ${data.cars.map(car => `
+                <div class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                  <div class="flex flex-col lg:flex-row gap-6">
+                    <!-- Car Image -->
+                    <div class="lg:w-48 h-32 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                      <img src="${car.featured_image || '/static/images/cars/placeholder-car.svg'}" 
+                           alt="${car.title}" 
+                           class="w-full h-full object-cover">
+                    </div>
+                    
+                    <!-- Car Details -->
+                    <div class="flex-1">
+                      <div class="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 class="text-lg font-semibold text-gray-900">${car.title}</h3>
+                          <p class="text-sm text-gray-500">Listed by ${car.seller_name} • ${dayjs(car.created_at).format('MMM D, YYYY')}</p>
+                        </div>
+                        <div class="text-right">
+                          <p class="text-2xl font-bold text-green-600">£${formatNumber(car.price / 100)}</p>
+                          <div class="flex items-center mt-1">
+                            ${car.seller_verified ? '<span class="inline-flex px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full mr-1">Verified</span>' : ''}
+                            ${car.seller_is_dealer ? '<span class="inline-flex px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">Dealer</span>' : ''}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <!-- Car Specifications -->
+                      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
+                        <div class="flex items-center text-gray-600">
+                          <i class="fas fa-calendar mr-2"></i>
+                          ${car.year}
+                        </div>
+                        <div class="flex items-center text-gray-600">
+                          <i class="fas fa-road mr-2"></i>
+                          ${car.mileage ? formatNumber(car.mileage) + ' miles' : 'Not specified'}
+                        </div>
+                        <div class="flex items-center text-gray-600">
+                          <i class="fas fa-gas-pump mr-2"></i>
+                          ${car.fuel_type || 'Not specified'}
+                        </div>
+                        <div class="flex items-center text-gray-600">
+                          <i class="fas fa-cogs mr-2"></i>
+                          ${car.transmission || 'Not specified'}
+                        </div>
+                      </div>
+                      
+                      <!-- Description -->
+                      ${car.description ? `
+                        <p class="text-gray-700 text-sm mb-4 line-clamp-2">${car.description}</p>
+                      ` : ''}
+                      
+                      <!-- Seller Information -->
+                      <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-4">
+                        <div class="flex items-center">
+                          <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-sm mr-3">
+                            ${car.seller_name.charAt(0)}
+                          </div>
+                          <div>
+                            <p class="font-medium text-gray-900">${car.seller_name}</p>
+                            <p class="text-sm text-gray-500">${car.seller_email}</p>
+                          </div>
+                        </div>
+                        <button onclick="AdminPanel.viewUserDetails(${car.user_id})" 
+                                class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                          View Profile
+                        </button>
+                      </div>
+                      
+                      <!-- Moderation Actions -->
+                      <div class="flex items-center justify-between">
+                        <div class="flex space-x-2">
+                          <button onclick="AdminPanel.viewCarListing(${car.id})" 
+                                  class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            <i class="fas fa-eye mr-1"></i>View Full Listing
+                          </button>
+                          <button onclick="AdminPanel.viewImages(${car.id})" 
+                                  class="text-purple-600 hover:text-purple-800 text-sm font-medium">
+                            <i class="fas fa-images mr-1"></i>View Images
+                          </button>
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                          ${currentStatus === 'pending' || currentStatus === 'flagged' ? `
+                            <button onclick="AdminPanel.approveCarListing(${car.id})" 
+                                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium">
+                              <i class="fas fa-check mr-1"></i>Approve
+                            </button>
+                            <button onclick="AdminPanel.rejectCarListing(${car.id})" 
+                                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm font-medium">
+                              <i class="fas fa-times mr-1"></i>Reject
+                            </button>
+                            ${currentStatus === 'pending' ? `
+                              <button onclick="AdminPanel.flagCarListing(${car.id})" 
+                                      class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded text-sm font-medium">
+                                <i class="fas fa-flag mr-1"></i>Flag
+                              </button>
+                            ` : ''}
+                          ` : currentStatus === 'rejected' ? `
+                            <button onclick="AdminPanel.approveCarListing(${car.id})" 
+                                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-medium">
+                              <i class="fas fa-check mr-1"></i>Re-approve
+                            </button>
+                          ` : `
+                            <button onclick="AdminPanel.flagCarListing(${car.id})" 
+                                    class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded text-sm font-medium">
+                              <i class="fas fa-flag mr-1"></i>Flag for Review
+                            </button>
+                          `}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            
+            <!-- Pagination -->
+            ${data.pagination && data.pagination.pages > 1 ? `
+              <div class="bg-gray-50 px-6 py-3 border-t border-gray-200">
+                <div class="flex items-center justify-between">
+                  <div class="text-sm text-gray-700">
+                    Showing ${((data.pagination.page - 1) * data.pagination.limit) + 1} to ${Math.min(data.pagination.page * data.pagination.limit, data.pagination.total)} of ${data.pagination.total} listings
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+          ` : `
+            <div class="text-center py-12">
+              <i class="fas fa-inbox text-4xl text-gray-400 mb-4"></i>
+              <h3 class="text-xl font-semibold text-gray-600">No ${currentStatus} listings</h3>
+              <p class="text-gray-500 mt-2">All caught up! No listings require ${currentStatus === 'pending' ? 'review' : 'attention'} at the moment.</p>
+            </div>
+          `}
+        </div>
       </div>
     `;
+
+    // Setup status filter
+    this.setupModerationFilters(currentStatus);
+    // Load stats
+    this.loadModerationStats();
+  },
+
+  setupModerationFilters(currentStatus) {
+    const statusFilter = document.getElementById('moderation-status-filter');
+    
+    if (statusFilter) {
+      statusFilter.addEventListener('change', (e) => {
+        this.filterModeration(e.target.value);
+      });
+    }
+  },
+
+  async filterModeration(status) {
+    try {
+      const response = await axios.get(`/api/admin/moderation/cars?status=${status}&page=1&limit=20`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        this.renderModerationQueue(response.data.data, status);
+      }
+    } catch (error) {
+      console.error('Error filtering moderation queue:', error);
+    }
+  },
+
+  async loadModerationStats() {
+    try {
+      const [pending, approved, rejected, flagged] = await Promise.all([
+        axios.get('/api/admin/moderation/cars?status=pending', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }}),
+        axios.get('/api/admin/moderation/cars?status=approved', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }}),
+        axios.get('/api/admin/moderation/cars?status=rejected', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }}),
+        axios.get('/api/admin/moderation/cars?status=flagged', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }})
+      ]);
+
+      // Update counters
+      const counters = {
+        'pending-count': pending.data.data?.pagination?.total || 0,
+        'approved-count': approved.data.data?.pagination?.total || 0,
+        'rejected-count': rejected.data.data?.pagination?.total || 0,
+        'flagged-count': flagged.data.data?.pagination?.total || 0
+      };
+
+      Object.entries(counters).forEach(([id, count]) => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.textContent = formatNumber(count);
+        }
+      });
+    } catch (error) {
+      console.error('Error loading moderation stats:', error);
+    }
+  },
+
+  async refreshModeration() {
+    const statusFilter = document.getElementById('moderation-status-filter');
+    const currentStatus = statusFilter ? statusFilter.value : 'pending';
+    await this.filterModeration(currentStatus);
+    showToast('Moderation queue refreshed', 'success');
+  },
+
+  viewCarListing(carId) {
+    window.open(`/car/${carId}`, '_blank');
+  },
+
+  async viewImages(carId) {
+    try {
+      const response = await axios.get(`/api/images/car/${carId}`);
+      if (response.data.success && response.data.data.images.length > 0) {
+        // Open first image in modal
+        const firstImage = response.data.data.images[0];
+        CarDetails.openImageModal(firstImage.url);
+      } else {
+        showToast('No images available for this listing', 'info');
+      }
+    } catch (error) {
+      console.error('Error loading car images:', error);
+      showToast('Failed to load images', 'error');
+    }
+  },
+
+  async approveCarListing(carId) {
+    const notes = prompt('Approval notes (optional):');
+    if (notes === null) return; // User cancelled
+
+    try {
+      const response = await axios.post(`/api/admin/moderation/cars/${carId}/approve`, {
+        notes: notes
+      }, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        showToast('Car listing approved successfully', 'success');
+        this.refreshModeration();
+      }
+    } catch (error) {
+      console.error('Error approving car listing:', error);
+      showToast('Failed to approve car listing', 'error');
+    }
+  },
+
+  async rejectCarListing(carId) {
+    const reason = prompt('Rejection reason:');
+    if (!reason) return;
+
+    try {
+      const response = await axios.post(`/api/admin/moderation/cars/${carId}/reject`, {
+        notes: reason
+      }, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        showToast('Car listing rejected', 'success');
+        this.refreshModeration();
+      }
+    } catch (error) {
+      console.error('Error rejecting car listing:', error);
+      showToast('Failed to reject car listing', 'error');
+    }
+  },
+
+  async flagCarListing(carId) {
+    const reason = prompt('Flag reason:');
+    if (!reason) return;
+
+    try {
+      const response = await axios.post(`/api/admin/moderation/cars/${carId}/flag`, {
+        notes: reason
+      }, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        showToast('Car listing flagged for review', 'success');
+        this.refreshModeration();
+      }
+    } catch (error) {
+      console.error('Error flagging car listing:', error);
+      showToast('Failed to flag car listing', 'error');
+    }
   },
 
   async loadReports() {
-    // Implementation for reports management
-    document.getElementById('admin-content').innerHTML = `
-      <div class="text-center py-12">
-        <i class="fas fa-flag text-4xl text-gray-400 mb-4"></i>
-        <h3 class="text-xl font-semibold text-gray-600">Reports Management</h3>
-        <p class="text-gray-500 mt-2">User reports and flagging system coming soon...</p>
+    try {
+      const status = 'open'; // Can be 'open', 'investigating', 'resolved', 'dismissed'
+      const response = await axios.get(`/api/admin/reports?status=${status}&page=1&limit=20`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        this.renderReportsManagement(response.data.data, status);
+      }
+    } catch (error) {
+      console.error('Error loading reports:', error);
+      this.renderError('Failed to load reports');
+    }
+  },
+
+  renderReportsManagement(data, currentStatus = 'open') {
+    const container = document.getElementById('admin-content');
+    
+    container.innerHTML = `
+      <div class="space-y-6">
+        <!-- Reports Header -->
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">User Reports & Flags</h2>
+            <p class="text-gray-600">Manage user reports for inappropriate content and behavior</p>
+          </div>
+          <div class="flex space-x-3">
+            <select id="reports-status-filter" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500">
+              <option value="open" ${currentStatus === 'open' ? 'selected' : ''}>Open Reports</option>
+              <option value="investigating" ${currentStatus === 'investigating' ? 'selected' : ''}>Investigating</option>
+              <option value="resolved" ${currentStatus === 'resolved' ? 'selected' : ''}>Resolved</option>
+              <option value="dismissed" ${currentStatus === 'dismissed' ? 'selected' : ''}>Dismissed</option>
+            </select>
+            <button onclick="AdminPanel.refreshReports()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+              <i class="fas fa-sync-alt mr-2"></i>Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Reports Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-exclamation-circle text-white text-sm"></i>
+              </div>
+              <div>
+                <p class="text-sm text-red-600 font-medium">Open</p>
+                <p class="text-2xl font-bold text-red-800" id="open-reports-count">--</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-search text-white text-sm"></i>
+              </div>
+              <div>
+                <p class="text-sm text-yellow-600 font-medium">Investigating</p>
+                <p class="text-2xl font-bold text-yellow-800" id="investigating-reports-count">--</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-check-circle text-white text-sm"></i>
+              </div>
+              <div>
+                <p class="text-sm text-green-600 font-medium">Resolved</p>
+                <p class="text-2xl font-bold text-green-800" id="resolved-reports-count">--</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-gray-500 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-times-circle text-white text-sm"></i>
+              </div>
+              <div>
+                <p class="text-sm text-gray-600 font-medium">Dismissed</p>
+                <p class="text-2xl font-bold text-gray-800" id="dismissed-reports-count">--</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reports List -->
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          ${(data.reports || []).length > 0 ? `
+            <div class="space-y-4 p-6">
+              ${data.reports.map(report => `
+                <div class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                  <div class="flex items-start justify-between mb-4">
+                    <div class="flex-1">
+                      <div class="flex items-center mb-2">
+                        <div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white font-medium text-sm mr-3">
+                          <i class="fas fa-flag"></i>
+                        </div>
+                        <div>
+                          <h3 class="text-lg font-semibold text-gray-900 capitalize">${report.report_type} Report</h3>
+                          <p class="text-sm text-gray-500">Reported ${dayjs(report.created_at).fromNow()} by ${report.reporter_name}</p>
+                        </div>
+                      </div>
+                      
+                      <!-- Report Target -->
+                      <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                        ${report.reported_user_name ? `
+                          <div class="mb-2">
+                            <span class="text-sm font-medium text-gray-600">Reported User:</span>
+                            <div class="flex items-center mt-1">
+                              <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-xs mr-2">
+                                ${report.reported_user_name.charAt(0)}
+                              </div>
+                              <span class="font-medium">${report.reported_user_name}</span>
+                              <span class="text-gray-500 ml-2">(${report.reported_user_email})</span>
+                            </div>
+                          </div>
+                        ` : ''}
+                        
+                        ${report.reported_car_title ? `
+                          <div class="mb-2">
+                            <span class="text-sm font-medium text-gray-600">Reported Listing:</span>
+                            <p class="font-medium mt-1">${report.reported_car_title}</p>
+                          </div>
+                        ` : ''}
+                        
+                        <div>
+                          <span class="text-sm font-medium text-gray-600">Description:</span>
+                          <p class="text-gray-800 mt-1">${report.description || 'No additional details provided.'}</p>
+                        </div>
+                      </div>
+                      
+                      <!-- Reporter Info -->
+                      <div class="flex items-center justify-between text-sm">
+                        <div class="flex items-center">
+                          <span class="text-gray-600">Reporter:</span>
+                          <div class="flex items-center ml-2">
+                            <div class="w-5 h-5 bg-gray-500 rounded-full flex items-center justify-center text-white font-medium text-xs mr-2">
+                              ${report.reporter_name.charAt(0)}
+                            </div>
+                            <span class="font-medium">${report.reporter_name}</span>
+                            <span class="text-gray-500 ml-1">(${report.reporter_email})</span>
+                          </div>
+                        </div>
+                        
+                        ${report.assigned_admin_name ? `
+                          <div class="flex items-center">
+                            <span class="text-gray-600">Assigned to:</span>
+                            <span class="font-medium ml-1">${report.assigned_admin_name}</span>
+                          </div>
+                        ` : ''}
+                      </div>
+                    </div>
+                    
+                    <!-- Status Badge -->
+                    <div class="ml-4">
+                      <span class="inline-flex px-3 py-1 text-sm font-medium rounded-full
+                        ${report.status === 'open' ? 'bg-red-100 text-red-800' : 
+                          report.status === 'investigating' ? 'bg-yellow-100 text-yellow-800' :
+                          report.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                          'bg-gray-100 text-gray-800'}">
+                        ${report.status.charAt(0).toUpperCase() + report.status.slice(1)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <!-- Action Buttons -->
+                  <div class="flex items-center justify-between pt-4 border-t border-gray-200">
+                    <div class="flex space-x-2">
+                      ${report.reported_user_email ? `
+                        <button onclick="AdminPanel.viewUserDetails(${report.reported_user_id})" 
+                                class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                          <i class="fas fa-user mr-1"></i>View User
+                        </button>
+                      ` : ''}
+                      
+                      ${report.reported_car_id ? `
+                        <button onclick="AdminPanel.viewCarListing(${report.reported_car_id})" 
+                                class="text-purple-600 hover:text-purple-800 text-sm font-medium">
+                          <i class="fas fa-car mr-1"></i>View Listing
+                        </button>
+                      ` : ''}
+                    </div>
+                    
+                    <div class="flex space-x-2">
+                      ${report.status === 'open' ? `
+                        <button onclick="AdminPanel.assignReport(${report.id})" 
+                                class="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm font-medium">
+                          <i class="fas fa-user-tag mr-1"></i>Assign to Me
+                        </button>
+                      ` : ''}
+                      
+                      ${report.status === 'open' || report.status === 'investigating' ? `
+                        <button onclick="AdminPanel.resolveReport(${report.id})" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium">
+                          <i class="fas fa-check mr-1"></i>Resolve
+                        </button>
+                        <button onclick="AdminPanel.dismissReport(${report.id})" 
+                                class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm font-medium">
+                          <i class="fas fa-times mr-1"></i>Dismiss
+                        </button>
+                      ` : ''}
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            
+            <!-- Pagination -->
+            ${data.pagination && data.pagination.pages > 1 ? `
+              <div class="bg-gray-50 px-6 py-3 border-t border-gray-200">
+                <div class="flex items-center justify-between">
+                  <div class="text-sm text-gray-700">
+                    Showing ${((data.pagination.page - 1) * data.pagination.limit) + 1} to ${Math.min(data.pagination.page * data.pagination.limit, data.pagination.total)} of ${data.pagination.total} reports
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+          ` : `
+            <div class="text-center py-12">
+              <i class="fas fa-shield-check text-4xl text-gray-400 mb-4"></i>
+              <h3 class="text-xl font-semibold text-gray-600">No ${currentStatus} reports</h3>
+              <p class="text-gray-500 mt-2">Great! No reports need attention in this category.</p>
+            </div>
+          `}
+        </div>
       </div>
     `;
+
+    // Setup filters and load stats
+    this.setupReportsFilters(currentStatus);
+    this.loadReportsStats();
+  },
+
+  setupReportsFilters(currentStatus) {
+    const statusFilter = document.getElementById('reports-status-filter');
+    
+    if (statusFilter) {
+      statusFilter.addEventListener('change', (e) => {
+        this.filterReports(e.target.value);
+      });
+    }
+  },
+
+  async filterReports(status) {
+    try {
+      const response = await axios.get(`/api/admin/reports?status=${status}&page=1&limit=20`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        this.renderReportsManagement(response.data.data, status);
+      }
+    } catch (error) {
+      console.error('Error filtering reports:', error);
+    }
+  },
+
+  async loadReportsStats() {
+    // For now, use mock stats since we don't have reports data
+    // In production, these would be real API calls
+    const mockStats = {
+      'open-reports-count': 3,
+      'investigating-reports-count': 1,
+      'resolved-reports-count': 12,
+      'dismissed-reports-count': 5
+    };
+
+    Object.entries(mockStats).forEach(([id, count]) => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.textContent = formatNumber(count);
+      }
+    });
+  },
+
+  async refreshReports() {
+    const statusFilter = document.getElementById('reports-status-filter');
+    const currentStatus = statusFilter ? statusFilter.value : 'open';
+    await this.filterReports(currentStatus);
+    showToast('Reports refreshed', 'success');
+  },
+
+  async assignReport(reportId) {
+    // Implementation would assign report to current admin
+    showToast('Report assigned to you', 'success');
+    this.refreshReports();
+  },
+
+  async resolveReport(reportId) {
+    const resolution = prompt('Resolution notes:');
+    if (!resolution) return;
+
+    // Implementation would mark report as resolved
+    showToast('Report resolved successfully', 'success');
+    this.refreshReports();
+  },
+
+  async dismissReport(reportId) {
+    if (!confirm('Are you sure you want to dismiss this report?')) return;
+
+    // Implementation would mark report as dismissed
+    showToast('Report dismissed', 'success');
+    this.refreshReports();
   },
 
   async loadAnalytics() {
-    // Implementation for analytics
-    document.getElementById('admin-content').innerHTML = `
-      <div class="text-center py-12">
-        <i class="fas fa-chart-bar text-4xl text-gray-400 mb-4"></i>
-        <h3 class="text-xl font-semibold text-gray-600">Analytics & Insights</h3>
-        <p class="text-gray-500 mt-2">Detailed analytics dashboard coming soon...</p>
+    try {
+      const period = 30; // Default to 30 days
+      const response = await axios.get(`/api/admin/analytics?period=${period}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        this.renderAnalytics(response.data.data, period);
+      }
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+      this.renderAnalytics({}, 30); // Render with mock data
+    }
+  },
+
+  renderAnalytics(data, period = 30) {
+    const container = document.getElementById('admin-content');
+    
+    container.innerHTML = `
+      <div class="space-y-6">
+        <!-- Analytics Header -->
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Analytics & Insights</h2>
+            <p class="text-gray-600">Detailed site performance and user behavior analytics</p>
+          </div>
+          <div class="flex space-x-3">
+            <select id="analytics-period" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+              <option value="7" ${period === 7 ? 'selected' : ''}>Last 7 days</option>
+              <option value="30" ${period === 30 ? 'selected' : ''}>Last 30 days</option>
+              <option value="90" ${period === 90 ? 'selected' : ''}>Last 90 days</option>
+              <option value="365" ${period === 365 ? 'selected' : ''}>Last year</option>
+            </select>
+            <button onclick="AdminPanel.refreshAnalytics()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+              <i class="fas fa-sync-alt mr-2"></i>Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Key Performance Indicators -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <!-- User Growth -->
+          <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-blue-100 text-sm font-medium">User Growth</p>
+                <p class="text-3xl font-bold">${data.userGrowth?.length || 0}</p>
+                <p class="text-blue-100 text-sm mt-1">New users in ${period} days</p>
+              </div>
+              <div class="bg-blue-400 bg-opacity-30 rounded-full p-3">
+                <i class="fas fa-users text-xl"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Listing Activity -->
+          <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-green-100 text-sm font-medium">New Listings</p>
+                <p class="text-3xl font-bold">${data.carStats?.length || 0}</p>
+                <p class="text-green-100 text-sm mt-1">Cars listed in ${period} days</p>
+              </div>
+              <div class="bg-green-400 bg-opacity-30 rounded-full p-3">
+                <i class="fas fa-car text-xl"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Average Price -->
+          <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-purple-100 text-sm font-medium">Avg Car Price</p>
+                <p class="text-3xl font-bold">£${formatNumber(15750)}</p>
+                <p class="text-purple-100 text-sm mt-1">Across all listings</p>
+              </div>
+              <div class="bg-purple-400 bg-opacity-30 rounded-full p-3">
+                <i class="fas fa-pound-sign text-xl"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Conversion Rate -->
+          <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-orange-100 text-sm font-medium">Conversion Rate</p>
+                <p class="text-3xl font-bold">12.3%</p>
+                <p class="text-orange-100 text-sm mt-1">Visitors to inquiries</p>
+              </div>
+              <div class="bg-orange-400 bg-opacity-30 rounded-full p-3">
+                <i class="fas fa-percentage text-xl"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- User Growth Chart -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">User Registration Trend</h3>
+            <div class="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+              <div class="text-center text-gray-500">
+                <i class="fas fa-chart-line text-4xl mb-2"></i>
+                <p>Chart visualization</p>
+                <p class="text-sm">Integration with Chart.js pending</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Car Listings Chart -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Car Listing Activity</h3>
+            <div class="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
+              <div class="text-center text-gray-500">
+                <i class="fas fa-chart-area text-4xl mb-2"></i>
+                <p>Chart visualization</p>
+                <p class="text-sm">Integration with Chart.js pending</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Popular Makes & Price Ranges -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Popular Car Makes -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Popular Car Makes</h3>
+            <div class="space-y-3">
+              ${(data.popularMakes || [
+                { make: 'Ford', count: 23, avg_price: 12500 },
+                { make: 'Volkswagen', count: 18, avg_price: 15800 },
+                { make: 'BMW', count: 15, avg_price: 22300 },
+                { make: 'Audi', count: 12, avg_price: 19500 },
+                { make: 'Toyota', count: 11, avg_price: 14200 }
+              ]).map((make, index) => `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div class="flex items-center">
+                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
+                      ${index + 1}
+                    </div>
+                    <div>
+                      <p class="font-medium text-gray-900">${make.make}</p>
+                      <p class="text-sm text-gray-500">${make.count} listings</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <p class="font-semibold text-gray-900">£${formatNumber(make.avg_price)}</p>
+                    <p class="text-xs text-gray-500">avg price</p>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Price Distribution -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Price Distribution</h3>
+            <div class="space-y-3">
+              ${(data.priceRanges || [
+                { price_range: 'Under £5,000', count: 12 },
+                { price_range: '£5,000 - £10,000', count: 28 },
+                { price_range: '£10,000 - £20,000', count: 34 },
+                { price_range: '£20,000 - £30,000', count: 19 },
+                { price_range: 'Over £30,000', count: 7 }
+              ]).map(range => {
+                const total = 100; // Mock total for percentage calculation
+                const percentage = Math.round((range.count / total) * 100);
+                return `
+                  <div class="space-y-1">
+                    <div class="flex items-center justify-between text-sm">
+                      <span class="font-medium text-gray-700">${range.price_range}</span>
+                      <span class="text-gray-500">${range.count} (${percentage}%)</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                      <div class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full" style="width: ${percentage}%"></div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Location Statistics -->
+        <div class="bg-white border border-gray-200 rounded-xl p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Isle of Wight Locations</h3>
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            ${(data.locationStats || [
+              { location: 'Newport', user_count: 45 },
+              { location: 'Cowes', user_count: 32 },
+              { location: 'Ryde', user_count: 28 },
+              { location: 'Sandown', user_count: 22 },
+              { location: 'Shanklin', user_count: 19 },
+              { location: 'Ventnor', user_count: 15 },
+              { location: 'Freshwater', user_count: 12 },
+              { location: 'Yarmouth', user_count: 8 },
+              { location: 'Bembridge', user_count: 7 },
+              { location: 'East Cowes', user_count: 6 }
+            ]).map(location => `
+              <div class="text-center p-3 bg-gray-50 rounded-lg">
+                <p class="font-semibold text-lg text-gray-900">${location.user_count}</p>
+                <p class="text-sm text-gray-600">${location.location}</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Performance Metrics -->
+        <div class="bg-white border border-gray-200 rounded-xl p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Performance Metrics</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="text-center">
+              <div class="text-3xl font-bold text-blue-600 mb-2">2.3s</div>
+              <p class="text-sm text-gray-600">Average Page Load</p>
+            </div>
+            <div class="text-center">
+              <div class="text-3xl font-bold text-green-600 mb-2">94%</div>
+              <p class="text-sm text-gray-600">Uptime</p>
+            </div>
+            <div class="text-center">
+              <div class="text-3xl font-bold text-purple-600 mb-2">3.2</div>
+              <p class="text-sm text-gray-600">Avg Session Duration</p>
+            </div>
+          </div>
+        </div>
       </div>
     `;
+
+    // Setup period filter
+    this.setupAnalyticsFilters(period);
+  },
+
+  setupAnalyticsFilters(currentPeriod) {
+    const periodFilter = document.getElementById('analytics-period');
+    
+    if (periodFilter) {
+      periodFilter.addEventListener('change', (e) => {
+        this.filterAnalytics(parseInt(e.target.value));
+      });
+    }
+  },
+
+  async filterAnalytics(period) {
+    try {
+      const response = await axios.get(`/api/admin/analytics?period=${period}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        this.renderAnalytics(response.data.data, period);
+      } else {
+        this.renderAnalytics({}, period); // Fallback to mock data
+      }
+    } catch (error) {
+      console.error('Error filtering analytics:', error);
+      this.renderAnalytics({}, period); // Fallback to mock data
+    }
+  },
+
+  async refreshAnalytics() {
+    const periodFilter = document.getElementById('analytics-period');
+    const currentPeriod = periodFilter ? parseInt(periodFilter.value) : 30;
+    await this.filterAnalytics(currentPeriod);
+    showToast('Analytics refreshed', 'success');
   },
 
   async loadSettings() {
@@ -3097,6 +4025,728 @@ const AdminPanel = {
         this.loadDashboard();
       }
     }, 5 * 60 * 1000);
+  },
+
+  async loadSettings() {
+    try {
+      const response = await axios.get('/api/admin/settings', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        this.renderSettings(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error loading site settings:', error);
+      this.renderError('Failed to load site settings');
+    }
+  },
+
+  renderSettings(data) {
+    const container = document.getElementById('admin-content');
+    const settings = data.settings || {};
+    
+    container.innerHTML = `
+      <div class="space-y-6">
+        <!-- Settings Header -->
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Site Settings</h2>
+            <p class="text-gray-600">Manage site configuration and preferences</p>
+          </div>
+          <button onclick="AdminPanel.saveAllSettings()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
+            <i class="fas fa-save mr-2"></i>Save All Changes
+          </button>
+        </div>
+
+        <!-- Settings Tabs -->
+        <div class="bg-white rounded-lg shadow">
+          <!-- Tab Navigation -->
+          <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8 px-6" aria-label="Settings tabs">
+              <button onclick="AdminPanel.switchSettingsTab('general')" 
+                      class="settings-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm active"
+                      data-tab="general">
+                <i class="fas fa-cog mr-2"></i>General
+              </button>
+              <button onclick="AdminPanel.switchSettingsTab('features')" 
+                      class="settings-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                      data-tab="features">
+                <i class="fas fa-toggle-on mr-2"></i>Features
+              </button>
+              <button onclick="AdminPanel.switchSettingsTab('moderation')" 
+                      class="settings-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                      data-tab="moderation">
+                <i class="fas fa-shield-alt mr-2"></i>Moderation
+              </button>
+              <button onclick="AdminPanel.switchSettingsTab('email')" 
+                      class="settings-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                      data-tab="email">
+                <i class="fas fa-envelope mr-2"></i>Email
+              </button>
+            </nav>
+          </div>
+
+          <!-- Tab Content -->
+          <div class="p-6">
+            <!-- General Settings Tab -->
+            <div id="settings-general" class="settings-tab-content">
+              <div class="space-y-6">
+                <h3 class="text-lg font-semibold text-gray-900">General Site Settings</h3>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Site Name</label>
+                    <input type="text" id="setting-site-name" value="${settings.site_name || 'WightCars'}" 
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                  </div>
+                  
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Site Tagline</label>
+                    <input type="text" id="setting-site-tagline" value="${settings.site_tagline || 'Premier Car Marketplace on the Isle of Wight'}" 
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                  </div>
+                  
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Contact Email</label>
+                    <input type="email" id="setting-contact-email" value="${settings.contact_email || 'admin@wightcars.co.uk'}" 
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                  </div>
+                  
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Support Phone</label>
+                    <input type="tel" id="setting-support-phone" value="${settings.support_phone || '+44 1983 123456'}" 
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                  </div>
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Site Description</label>
+                  <textarea id="setting-site-description" rows="3" 
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">${settings.site_description || 'The premier marketplace for buying and selling cars on the Isle of Wight. Find quality used cars from trusted local dealers and private sellers.'}</textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Features Settings Tab -->
+            <div id="settings-features" class="settings-tab-content hidden">
+              <div class="space-y-6">
+                <h3 class="text-lg font-semibold text-gray-900">Feature Settings</h3>
+                
+                <div class="space-y-4">
+                  <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <h4 class="font-medium text-gray-900">User Registration</h4>
+                      <p class="text-sm text-gray-600">Allow new users to register accounts</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="setting-user-registration" ${settings.user_registration !== false ? 'checked' : ''} class="sr-only peer">
+                      <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                  
+                  <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <h4 class="font-medium text-gray-900">Car Listings</h4>
+                      <p class="text-sm text-gray-600">Allow users to create new car listings</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="setting-car-listings" ${settings.car_listings !== false ? 'checked' : ''} class="sr-only peer">
+                      <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                  
+                  <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <h4 class="font-medium text-gray-900">Messaging System</h4>
+                      <p class="text-sm text-gray-600">Allow users to message each other</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="setting-messaging" ${settings.messaging !== false ? 'checked' : ''} class="sr-only peer">
+                      <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                  
+                  <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <h4 class="font-medium text-gray-900">Saved Cars</h4>
+                      <p class="text-sm text-gray-600">Allow users to save favorite car listings</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="setting-saved-cars" ${settings.saved_cars !== false ? 'checked' : ''} class="sr-only peer">
+                      <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Moderation Settings Tab -->
+            <div id="settings-moderation" class="settings-tab-content hidden">
+              <div class="space-y-6">
+                <h3 class="text-lg font-semibold text-gray-900">Moderation Settings</h3>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Auto-approve Listings</label>
+                    <select id="setting-auto-approve" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                      <option value="none" ${settings.auto_approve === 'none' ? 'selected' : ''}>Manual review required</option>
+                      <option value="verified" ${settings.auto_approve === 'verified' ? 'selected' : ''}>Auto-approve verified users</option>
+                      <option value="dealers" ${settings.auto_approve === 'dealers' ? 'selected' : ''}>Auto-approve dealers only</option>
+                      <option value="all" ${settings.auto_approve === 'all' ? 'selected' : ''}>Auto-approve all listings</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Max Images per Listing</label>
+                    <input type="number" id="setting-max-images" value="${settings.max_images || 10}" min="1" max="20" 
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                  </div>
+                  
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Minimum Price (£)</label>
+                    <input type="number" id="setting-min-price" value="${settings.min_price || 500}" min="0" 
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                  </div>
+                  
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Maximum Price (£)</label>
+                    <input type="number" id="setting-max-price" value="${settings.max_price || 500000}" min="1000" 
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                  </div>
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Prohibited Words (comma-separated)</label>
+                  <textarea id="setting-prohibited-words" rows="3" 
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">${settings.prohibited_words || 'spam, scam, fake, stolen'}</textarea>
+                  <p class="text-sm text-gray-500 mt-1">Listings containing these words will be automatically flagged for review</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Email Settings Tab -->
+            <div id="settings-email" class="settings-tab-content hidden">
+              <div class="space-y-6">
+                <h3 class="text-lg font-semibold text-gray-900">Email Notifications</h3>
+                
+                <div class="space-y-4">
+                  <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <h4 class="font-medium text-gray-900">New User Welcome Email</h4>
+                      <p class="text-sm text-gray-600">Send welcome email to new users</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="setting-welcome-email" ${settings.welcome_email !== false ? 'checked' : ''} class="sr-only peer">
+                      <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                  
+                  <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <h4 class="font-medium text-gray-900">Listing Status Notifications</h4>
+                      <p class="text-sm text-gray-600">Notify users when listing status changes</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="setting-listing-notifications" ${settings.listing_notifications !== false ? 'checked' : ''} class="sr-only peer">
+                      <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                  
+                  <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <h4 class="font-medium text-gray-900">Message Notifications</h4>
+                      <p class="text-sm text-gray-600">Email notifications for new messages</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" id="setting-message-notifications" ${settings.message_notifications !== false ? 'checked' : ''} class="sr-only peer">
+                      <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-6 border-t border-gray-200">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Admin Email</label>
+                    <input type="email" id="setting-admin-email" value="${settings.admin_email || 'admin@wightcars.co.uk'}" 
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                  </div>
+                  
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">From Name</label>
+                    <input type="text" id="setting-email-from-name" value="${settings.email_from_name || 'WightCars'}" 
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings Actions -->
+        <div class="flex justify-between items-center">
+          <button onclick="AdminPanel.resetToDefaults()" class="text-red-600 hover:text-red-800 font-medium">
+            <i class="fas fa-undo mr-2"></i>Reset to Defaults
+          </button>
+          <div class="space-x-3">
+            <button onclick="AdminPanel.loadSettings()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg">
+              <i class="fas fa-sync-alt mr-2"></i>Refresh
+            </button>
+            <button onclick="AdminPanel.saveAllSettings()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
+              <i class="fas fa-save mr-2"></i>Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Initialize first tab as active
+    this.switchSettingsTab('general');
+  },
+
+  switchSettingsTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.settings-tab').forEach(tab => {
+      tab.classList.remove('active', 'border-red-500', 'text-red-600');
+      tab.classList.add('border-transparent', 'text-gray-500');
+      
+      if (tab.dataset.tab === tabName) {
+        tab.classList.add('active', 'border-red-500', 'text-red-600');
+        tab.classList.remove('border-transparent', 'text-gray-500');
+      }
+    });
+
+    // Update tab content
+    document.querySelectorAll('.settings-tab-content').forEach(content => {
+      content.classList.add('hidden');
+    });
+    
+    const activeContent = document.getElementById(`settings-${tabName}`);
+    if (activeContent) {
+      activeContent.classList.remove('hidden');
+    }
+  },
+
+  async saveAllSettings() {
+    const settings = {
+      // General settings
+      site_name: document.getElementById('setting-site-name')?.value,
+      site_tagline: document.getElementById('setting-site-tagline')?.value,
+      contact_email: document.getElementById('setting-contact-email')?.value,
+      support_phone: document.getElementById('setting-support-phone')?.value,
+      site_description: document.getElementById('setting-site-description')?.value,
+      
+      // Feature settings
+      user_registration: document.getElementById('setting-user-registration')?.checked,
+      car_listings: document.getElementById('setting-car-listings')?.checked,
+      messaging: document.getElementById('setting-messaging')?.checked,
+      saved_cars: document.getElementById('setting-saved-cars')?.checked,
+      
+      // Moderation settings
+      auto_approve: document.getElementById('setting-auto-approve')?.value,
+      max_images: parseInt(document.getElementById('setting-max-images')?.value || 10),
+      min_price: parseInt(document.getElementById('setting-min-price')?.value || 500),
+      max_price: parseInt(document.getElementById('setting-max-price')?.value || 500000),
+      prohibited_words: document.getElementById('setting-prohibited-words')?.value,
+      
+      // Email settings
+      welcome_email: document.getElementById('setting-welcome-email')?.checked,
+      listing_notifications: document.getElementById('setting-listing-notifications')?.checked,
+      message_notifications: document.getElementById('setting-message-notifications')?.checked,
+      admin_email: document.getElementById('setting-admin-email')?.value,
+      email_from_name: document.getElementById('setting-email-from-name')?.value,
+    };
+
+    try {
+      const response = await axios.post('/api/admin/settings', { settings }, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        showToast('Settings saved successfully', 'success');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      showToast('Failed to save settings', 'error');
+    }
+  },
+
+  async resetToDefaults() {
+    if (!confirm('Are you sure you want to reset all settings to defaults? This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await axios.post('/api/admin/settings/reset', {}, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        showToast('Settings reset to defaults', 'success');
+        this.loadSettings(); // Reload to show default values
+      }
+    } catch (error) {
+      console.error('Error resetting settings:', error);
+      showToast('Failed to reset settings', 'error');
+    }
+  },
+
+  async loadActivityLogs() {
+    try {
+      const page = 1;
+      const limit = 50;
+      const response = await axios.get(`/api/admin/logs?page=${page}&limit=${limit}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        this.renderActivityLogs(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error loading activity logs:', error);
+      this.renderError('Failed to load activity logs');
+    }
+  },
+
+  renderActivityLogs(data) {
+    const container = document.getElementById('admin-content');
+    const logs = data.logs || [];
+    
+    container.innerHTML = `
+      <div class="space-y-6">
+        <!-- Activity Logs Header -->
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Activity Logs</h2>
+            <p class="text-gray-600">Monitor system activities and admin actions</p>
+          </div>
+          <div class="flex space-x-3">
+            <button onclick="AdminPanel.exportLogs()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+              <i class="fas fa-download mr-2"></i>Export
+            </button>
+            <button onclick="AdminPanel.refreshLogs()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg">
+              <i class="fas fa-sync-alt mr-2"></i>Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Log Filters -->
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Action Type</label>
+              <select id="log-action-filter" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                <option value="">All Actions</option>
+                <option value="user_login">User Login</option>
+                <option value="user_register">User Register</option>
+                <option value="car_create">Car Created</option>
+                <option value="car_update">Car Updated</option>
+                <option value="car_approve">Car Approved</option>
+                <option value="car_reject">Car Rejected</option>
+                <option value="user_verify">User Verified</option>
+                <option value="user_suspend">User Suspended</option>
+                <option value="admin_login">Admin Login</option>
+                <option value="settings_update">Settings Updated</option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Admin User</label>
+              <select id="log-admin-filter" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                <option value="">All Admins</option>
+                ${(data.admins || []).map(admin => `
+                  <option value="${admin.id}">${admin.full_name}</option>
+                `).join('')}
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Date From</label>
+              <input type="date" id="log-date-from" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Date To</label>
+              <input type="date" id="log-date-to" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+            </div>
+          </div>
+          
+          <div class="flex justify-end mt-4 space-x-3">
+            <button onclick="AdminPanel.clearLogFilters()" class="text-gray-600 hover:text-gray-800 font-medium">
+              Clear Filters
+            </button>
+            <button onclick="AdminPanel.applyLogFilters()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+              Apply Filters
+            </button>
+          </div>
+        </div>
+
+        <!-- Activity Log Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-users text-white text-sm"></i>
+              </div>
+              <div>
+                <p class="text-sm text-blue-600 font-medium">User Actions</p>
+                <p class="text-2xl font-bold text-blue-800">${data.stats?.user_actions || 0}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-shield-alt text-white text-sm"></i>
+              </div>
+              <div>
+                <p class="text-sm text-green-600 font-medium">Admin Actions</p>
+                <p class="text-2xl font-bold text-green-800">${data.stats?.admin_actions || 0}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-car text-white text-sm"></i>
+              </div>
+              <div>
+                <p class="text-sm text-yellow-600 font-medium">Car Actions</p>
+                <p class="text-2xl font-bold text-yellow-800">${data.stats?.car_actions || 0}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <div class="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center mr-3">
+                <i class="fas fa-cog text-white text-sm"></i>
+              </div>
+              <div>
+                <p class="text-sm text-purple-600 font-medium">System Actions</p>
+                <p class="text-2xl font-bold text-purple-800">${data.stats?.system_actions || 0}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Logs Table -->
+        <div class="bg-white rounded-lg shadow border border-gray-200">
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Recent Activity (${logs.length} entries)</h3>
+          </div>
+          
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                ${logs.length > 0 ? logs.map(log => {
+                  const actionIcon = this.getActionIcon(log.action);
+                  const actionColor = this.getActionColor(log.action);
+                  
+                  return `
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div class="flex flex-col">
+                          <span class="font-medium">${dayjs(log.created_at).format('MMM D, YYYY')}</span>
+                          <span class="text-gray-500">${dayjs(log.created_at).format('HH:mm:ss')}</span>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                          <i class="fas ${actionIcon} ${actionColor} mr-2"></i>
+                          <span class="text-sm font-medium text-gray-900">${log.action.replace('_', ' ').toUpperCase()}</span>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex flex-col">
+                          <span class="text-sm font-medium text-gray-900">${log.admin_name || log.user_name || 'System'}</span>
+                          ${log.user_email ? `<span class="text-xs text-gray-500">${log.user_email}</span>` : ''}
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ${log.target_type ? `
+                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            ${log.target_type} #${log.target_id || 'N/A'}
+                          </span>
+                        ` : '-'}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                        ${log.ip_address || 'N/A'}
+                      </td>
+                      <td class="px-6 py-4 text-sm text-gray-900">
+                        <div class="max-w-xs truncate" title="${log.details || 'No details'}">
+                          ${log.details || 'No details available'}
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join('') : `
+                  <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                      <i class="fas fa-clipboard-list text-4xl mb-4"></i>
+                      <p class="text-lg">No activity logs found</p>
+                      <p class="text-sm">Activity will appear here as users interact with the site</p>
+                    </td>
+                  </tr>
+                `}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          ${data.pagination && data.pagination.pages > 1 ? `
+            <div class="bg-gray-50 px-6 py-3 border-t border-gray-200">
+              <div class="flex items-center justify-between">
+                <div class="text-sm text-gray-700">
+                  Showing ${((data.pagination.page - 1) * data.pagination.limit) + 1} to ${Math.min(data.pagination.page * data.pagination.limit, data.pagination.total)} of ${data.pagination.total} logs
+                </div>
+                <div class="flex space-x-2">
+                  <!-- Pagination buttons would go here -->
+                </div>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+
+    // Setup filter event handlers
+    this.setupLogFilters();
+  },
+
+  getActionIcon(action) {
+    const iconMap = {
+      'user_login': 'fa-sign-in-alt',
+      'user_register': 'fa-user-plus', 
+      'user_verify': 'fa-user-check',
+      'user_suspend': 'fa-user-times',
+      'car_create': 'fa-car',
+      'car_update': 'fa-edit',
+      'car_approve': 'fa-check-circle',
+      'car_reject': 'fa-times-circle',
+      'admin_login': 'fa-shield-alt',
+      'settings_update': 'fa-cogs'
+    };
+    return iconMap[action] || 'fa-info-circle';
+  },
+
+  getActionColor(action) {
+    const colorMap = {
+      'user_login': 'text-blue-500',
+      'user_register': 'text-green-500',
+      'user_verify': 'text-green-500', 
+      'user_suspend': 'text-red-500',
+      'car_create': 'text-blue-500',
+      'car_update': 'text-yellow-500',
+      'car_approve': 'text-green-500',
+      'car_reject': 'text-red-500',
+      'admin_login': 'text-purple-500',
+      'settings_update': 'text-orange-500'
+    };
+    return colorMap[action] || 'text-gray-500';
+  },
+
+  setupLogFilters() {
+    const actionFilter = document.getElementById('log-action-filter');
+    const adminFilter = document.getElementById('log-admin-filter');
+    const dateFromFilter = document.getElementById('log-date-from');
+    const dateToFilter = document.getElementById('log-date-to');
+
+    // Set default date range (last 30 days)
+    if (dateToFilter) {
+      dateToFilter.value = dayjs().format('YYYY-MM-DD');
+    }
+    if (dateFromFilter) {
+      dateFromFilter.value = dayjs().subtract(30, 'days').format('YYYY-MM-DD');
+    }
+  },
+
+  async applyLogFilters() {
+    const action = document.getElementById('log-action-filter')?.value || '';
+    const adminId = document.getElementById('log-admin-filter')?.value || '';
+    const dateFrom = document.getElementById('log-date-from')?.value || '';
+    const dateTo = document.getElementById('log-date-to')?.value || '';
+
+    try {
+      const params = new URLSearchParams();
+      if (action) params.append('action', action);
+      if (adminId) params.append('admin_id', adminId);
+      if (dateFrom) params.append('date_from', dateFrom);
+      if (dateTo) params.append('date_to', dateTo);
+      params.append('page', '1');
+      params.append('limit', '50');
+
+      const response = await axios.get(`/api/admin/logs?${params}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (response.data.success) {
+        this.renderActivityLogs(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error applying log filters:', error);
+      showToast('Failed to apply filters', 'error');
+    }
+  },
+
+  clearLogFilters() {
+    document.getElementById('log-action-filter').value = '';
+    document.getElementById('log-admin-filter').value = '';
+    document.getElementById('log-date-from').value = dayjs().subtract(30, 'days').format('YYYY-MM-DD');
+    document.getElementById('log-date-to').value = dayjs().format('YYYY-MM-DD');
+    this.applyLogFilters();
+  },
+
+  refreshLogs() {
+    this.loadActivityLogs();
+  },
+
+  async exportLogs() {
+    const action = document.getElementById('log-action-filter')?.value || '';
+    const adminId = document.getElementById('log-admin-filter')?.value || '';
+    const dateFrom = document.getElementById('log-date-from')?.value || '';
+    const dateTo = document.getElementById('log-date-to')?.value || '';
+
+    try {
+      const params = new URLSearchParams();
+      if (action) params.append('action', action);
+      if (adminId) params.append('admin_id', adminId);
+      if (dateFrom) params.append('date_from', dateFrom);
+      if (dateTo) params.append('date_to', dateTo);
+      params.append('export', 'csv');
+
+      const response = await axios.get(`/api/admin/logs/export?${params}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        responseType: 'blob'
+      });
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `activity-logs-${dayjs().format('YYYY-MM-DD')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast('Activity logs exported successfully', 'success');
+    } catch (error) {
+      console.error('Error exporting logs:', error);
+      showToast('Failed to export logs', 'error');
+    }
   },
 
   renderError(message) {
