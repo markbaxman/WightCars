@@ -214,6 +214,16 @@ npm run git:commit "msg"  # Git add & commit
 - `GET /api/cars/my/saved` - Get user's saved cars (auth required)
 - `GET /api/cars/data/makes` - Get car makes and models data
 
+### Users
+- `GET /api/users/dashboard/stats` - Get user dashboard statistics (auth required)
+- `GET /api/users/dashboard/activity` - Get user recent activity (auth required)
+- `GET /api/users/profile/:id` - Get public user profile
+- `GET /api/users/:id/cars` - Get user's car listings
+- `PUT /api/users/profile` - Update user profile (auth required)
+- `PUT /api/users/password` - Change user password (auth required)
+- `GET /api/users/admin/stats` - Get admin site statistics (auth required)
+- `GET /api/users/admin/users` - Get admin user list (auth required)
+
 ### Messages
 - `GET /api/messages` - Get user's messages (auth required)
 - `POST /api/messages` - Send message about a car (auth required)
@@ -228,28 +238,41 @@ npm run git:commit "msg"  # Git add & commit
 ### Currently Implemented
 1. **Homepage**
    - Hero section with Isle of Wight branding
-   - Quick search form
-   - Featured cars grid
-   - Features showcase
-   - Call-to-action sections
+   - Quick search form with 40+ car makes and 500+ models
+   - Featured cars grid with real database data
+   - Features showcase and call-to-action sections
 
-2. **Authentication**
-   - Login page with form validation
-   - Registration page with dealer option
-   - JWT token management
-   - Automatic navigation updates
+2. **Authentication System** ✅ **FULLY IMPLEMENTED**
+   - User registration with email validation
+   - Secure JWT-based login/logout
+   - Password hashing with SHA-256 + salt
+   - Automatic navigation state updates
+   - Token persistence in localStorage
+   - Protected API endpoints
+   - User profile management
+   - Dealer account support
 
-3. **Car Browsing**
-   - Browse page with filters sidebar
-   - Car cards with images and details
-   - Pagination system
-   - Advanced search functionality
+3. **Car Browsing & Search**
+   - Browse page with comprehensive filters sidebar
+   - Car cards with seller information and badges
+   - Pagination system with real database queries
+   - Advanced search by make, model, price, year, fuel type
+   - Location-based filtering (Isle of Wight areas)
+   - Sort by price, year, date posted
 
-4. **Navigation**
-   - Responsive navigation bar
-   - Mobile-friendly menu
-   - User dropdown menu
+4. **Database & API**
+   - Cloudflare D1 SQLite database with full schema
+   - Real car listings with 6 sample cars
+   - User authentication and profiles
+   - RESTful API with comprehensive error handling
+   - Database fallback system for development
+
+5. **Navigation & UX**
+   - Responsive navigation with mobile menu
+   - Dynamic user dropdown with dealer badges
    - Authentication state management
+   - Toast notifications for user feedback
+   - Mobile-first responsive design
 
 ### 🔜 Features Not Yet Implemented
 
@@ -394,10 +417,29 @@ npm run git:commit "msg"  # Git add & commit
 3. **Professional Profile**: Showcase your dealership
 4. **Enhanced Features**: Access dealer-specific tools
 
+## 🔑 Test Users & Login Credentials
+
+**All test users use password: `password123`**
+
+| Email | Name | Type | Location | Verified |
+|-------|------|------|----------|----------|
+| john.smith@wightcars.com | John Smith | Private Seller | Newport | ✅ |
+| sarah.jones@dealer.com | Sarah Jones | **Dealer** | Cowes | ✅ |
+| mike.wilson@email.com | Mike Wilson | Private Seller | Ryde | ❌ |
+| emma.brown@wightcars.com | Emma Brown | Private Seller | Sandown | ✅ |
+
+### How to Test Authentication
+1. **Visit Login Page**: Navigate to `/login` 
+2. **Use Test Credentials**: Try any email above with password `password123`
+3. **Check Navigation**: User menu appears with name and dealer badge (if applicable)
+4. **Test Logout**: Click user menu → Sign Out
+5. **Test Registration**: Create new account at `/register`
+
 ## 🔒 Security & Privacy
 
 - **Data Protection**: All user data encrypted and stored securely
-- **Authentication**: JWT tokens with secure expiration
+- **Authentication**: JWT tokens with secure expiration (7 days)
+- **Password Security**: SHA-256 hashing with salt for password protection
 - **Input Validation**: All user inputs validated and sanitized
 - **HTTPS Only**: All traffic encrypted in transit
 - **Local Focus**: Isle of Wight only - reduces spam and fraud

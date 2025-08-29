@@ -6,15 +6,15 @@
   "pages_build_output_dir": "./dist",
   "compatibility_flags": ["nodejs_compat"],
   
-  // D1 Database will be created during deployment
+  // D1 Database configuration
   // For local development, wrangler creates a local SQLite database automatically
-  // "d1_databases": [
-  //   {
-  //     "binding": "DB",
-  //     "database_name": "wightcars-production", 
-  //     "database_id": ""
-  //   }
-  // ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "wightcars-production", 
+      "database_id": "local-development-db"
+    }
+  ],
   
   // Environment variables for JWT and other secrets
   "vars": {

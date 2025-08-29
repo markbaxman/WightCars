@@ -8,6 +8,7 @@ import { renderer } from './renderer'
 import auth from './routes/auth'
 import cars from './routes/cars'
 import messages from './routes/messages'
+import users from './routes/users'
 
 const app = new Hono<{ Bindings: CloudflareBindings }>()
 
@@ -28,6 +29,7 @@ app.use(renderer)
 app.route('/api/auth', auth)
 app.route('/api/cars', cars)
 app.route('/api/messages', messages)
+app.route('/api/users', users)
 
 // API health check
 app.get('/api/health', async (c) => {
@@ -311,10 +313,124 @@ app.get('/browse', (c) => {
           <div class="lg:col-span-1">
             <div class="bg-white rounded-lg shadow-md p-6">
               <h2 class="text-xl font-semibold mb-4">Filters</h2>
-              {/* Filter form will be populated by JavaScript */}
-              <div id="filters-form">
-                <p class="text-gray-500">Loading filters...</p>
-              </div>
+              
+              <form id="filters-form" class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Make</label>
+                  <select name="make" class="car-make-select w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Any Make</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Model</label>
+                  <select name="model" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Any Model</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <select name="min_price" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">Min Price</option>
+                      <option value="500000">£5,000</option>
+                      <option value="1000000">£10,000</option>
+                      <option value="1500000">£15,000</option>
+                      <option value="2000000">£20,000</option>
+                      <option value="3000000">£30,000</option>
+                    </select>
+                    <select name="max_price" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">Max Price</option>
+                      <option value="1000000">£10,000</option>
+                      <option value="2000000">£20,000</option>
+                      <option value="3000000">£30,000</option>
+                      <option value="5000000">£50,000</option>
+                      <option value="10000000">£100,000</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Year Range</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <select name="min_year" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">Min Year</option>
+                      <option value="2020">2020+</option>
+                      <option value="2018">2018+</option>
+                      <option value="2016">2016+</option>
+                      <option value="2014">2014+</option>
+                      <option value="2010">2010+</option>
+                    </select>
+                    <select name="max_year" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <option value="">Max Year</option>
+                      <option value="2024">2024</option>
+                      <option value="2022">2022</option>
+                      <option value="2020">2020</option>
+                      <option value="2018">2018</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Fuel Type</label>
+                  <select name="fuel_type" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Any Fuel</option>
+                    <option value="petrol">Petrol</option>
+                    <option value="diesel">Diesel</option>
+                    <option value="electric">Electric</option>
+                    <option value="hybrid">Hybrid</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Transmission</label>
+                  <select name="transmission" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Any Transmission</option>
+                    <option value="manual">Manual</option>
+                    <option value="automatic">Automatic</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                  <select name="location" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Anywhere on Island</option>
+                    <option value="newport">Newport</option>
+                    <option value="cowes">Cowes</option>
+                    <option value="east cowes">East Cowes</option>
+                    <option value="ryde">Ryde</option>
+                    <option value="sandown">Sandown</option>
+                    <option value="shanklin">Shanklin</option>
+                    <option value="ventnor">Ventnor</option>
+                    <option value="freshwater">Freshwater</option>
+                    <option value="yarmouth">Yarmouth</option>
+                    <option value="bembridge">Bembridge</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+                  <select name="sort_by" class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="created_desc">Newest First</option>
+                    <option value="created_asc">Oldest First</option>
+                    <option value="price_asc">Price: Low to High</option>
+                    <option value="price_desc">Price: High to Low</option>
+                    <option value="year_desc">Year: Newest First</option>
+                    <option value="year_asc">Year: Oldest First</option>
+                  </select>
+                </div>
+                
+                <button type="button" onclick="applyFilters()" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200 font-medium">
+                  <i class="fas fa-search mr-2"></i>
+                  Apply Filters
+                </button>
+                
+                <button type="button" onclick="clearFilters()" class="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition duration-200 font-medium">
+                  <i class="fas fa-times mr-2"></i>
+                  Clear Filters
+                </button>
+              </form>
             </div>
           </div>
           
@@ -544,6 +660,255 @@ app.get('/register', (c) => {
             <a href="/login" class="text-sm text-blue-600 hover:text-blue-500">
               Sign in here
             </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// Car Details Page
+app.get('/car/:id', async (c) => {
+  const carId = c.req.param('id')
+  
+  return c.render(
+    <div class="min-h-screen bg-gray-50">
+      <div class="container mx-auto px-4 py-8">
+        {/* Car details will be loaded by JavaScript */}
+        <div id="car-details-container" data-car-id={carId}>
+          <div class="text-center py-12">
+            <i class="fas fa-spinner fa-spin text-3xl text-gray-400 mb-4"></i>
+            <p class="text-gray-500">Loading car details...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// User Dashboard
+app.get('/dashboard', (c) => {
+  return c.render(
+    <div class="min-h-screen bg-gray-50">
+      <div class="container mx-auto px-4 py-8">
+        <div class="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar Navigation */}
+          <div class="lg:w-1/4">
+            <div class="bg-white rounded-lg shadow-md p-6">
+              <div id="dashboard-user-info" class="text-center mb-6">
+                <div class="w-20 h-20 bg-gray-300 rounded-full mx-auto mb-3 flex items-center justify-center">
+                  <i class="fas fa-user text-2xl text-gray-600"></i>
+                </div>
+                <h3 class="font-semibold text-lg" id="dashboard-user-name">Loading...</h3>
+                <p class="text-gray-600 text-sm" id="dashboard-user-email">Loading...</p>
+              </div>
+              
+              <nav class="space-y-2">
+                <a href="#overview" class="dashboard-nav-item active flex items-center px-4 py-2 text-blue-600 bg-blue-50 rounded-lg">
+                  <i class="fas fa-tachometer-alt mr-3"></i>
+                  Overview
+                </a>
+                <a href="#listings" class="dashboard-nav-item flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
+                  <i class="fas fa-car mr-3"></i>
+                  My Listings
+                </a>
+                <a href="#messages" class="dashboard-nav-item flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
+                  <i class="fas fa-envelope mr-3"></i>
+                  Messages
+                  <span id="unread-count" class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full hidden">0</span>
+                </a>
+                <a href="#saved" class="dashboard-nav-item flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
+                  <i class="fas fa-heart mr-3"></i>
+                  Saved Cars
+                </a>
+                <a href="#profile" class="dashboard-nav-item flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
+                  <i class="fas fa-user-cog mr-3"></i>
+                  Profile Settings
+                </a>
+              </nav>
+            </div>
+          </div>
+          
+          {/* Main Content */}
+          <div class="lg:w-3/4">
+            <div id="dashboard-content">
+              {/* Content will be loaded by JavaScript based on selected tab */}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// Sell Car Page  
+app.get('/sell', (c) => {
+  return c.render(
+    <div class="min-h-screen bg-gray-50">
+      <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+          <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="bg-blue-600 text-white p-6">
+              <h1 class="text-2xl font-bold">Sell Your Car</h1>
+              <p class="mt-2">List your car on WightCars and reach thousands of potential buyers on the Isle of Wight</p>
+            </div>
+            
+            <div id="sell-car-form-container" class="p-6">
+              {/* Form will be generated by JavaScript */}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// Messages Page
+app.get('/messages', (c) => {
+  return c.render(
+    <div class="min-h-screen bg-gray-50">
+      <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">Messages</h1>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Conversations List */}
+          <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow-md">
+              <div class="p-4 border-b">
+                <h2 class="text-lg font-semibold">Conversations</h2>
+              </div>
+              <div id="conversations-list" class="divide-y">
+                {/* Conversations will be loaded by JavaScript */}
+              </div>
+            </div>
+          </div>
+          
+          {/* Message Thread */}
+          <div class="lg:col-span-2">
+            <div class="bg-white rounded-lg shadow-md h-96">
+              <div id="message-thread">
+                <div class="flex items-center justify-center h-full text-gray-500">
+                  <div class="text-center">
+                    <i class="fas fa-comments text-4xl mb-4"></i>
+                    <p>Select a conversation to view messages</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// Saved Cars Page
+app.get('/saved', (c) => {
+  return c.render(
+    <div class="min-h-screen bg-gray-50">
+      <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">
+          <i class="fas fa-heart mr-3 text-red-500"></i>
+          Saved Cars
+        </h1>
+        
+        <div id="saved-cars-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Saved cars will be loaded by JavaScript */}
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// Advanced Search Page
+app.get('/search', (c) => {
+  return c.render(
+    <div class="min-h-screen bg-gray-50">
+      <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">Advanced Search</h1>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Advanced Filters */}
+          <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow-md p-6">
+              <h2 class="text-xl font-semibold mb-4">Search Filters</h2>
+              <div id="advanced-search-form">
+                {/* Advanced search form will be generated by JavaScript */}
+              </div>
+            </div>
+          </div>
+          
+          {/* Search Results */}
+          <div class="lg:col-span-3">
+            <div id="search-results">
+              {/* Search results will be loaded by JavaScript */}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// User Profile Page (public)
+app.get('/profile/:id', async (c) => {
+  const userId = c.req.param('id')
+  
+  return c.render(
+    <div class="min-h-screen bg-gray-50">
+      <div class="container mx-auto px-4 py-8">
+        <div id="user-profile-container" data-user-id={userId}>
+          {/* User profile will be loaded by JavaScript */}
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// Admin Panel (protected route)
+app.get('/admin', (c) => {
+  return c.render(
+    <div class="min-h-screen bg-gray-100">
+      <div class="container mx-auto px-4 py-8">
+        <div class="flex flex-col lg:flex-row gap-8">
+          {/* Admin Sidebar */}
+          <div class="lg:w-1/4">
+            <div class="bg-white rounded-lg shadow-md p-6">
+              <h2 class="text-xl font-bold mb-4 text-red-600">
+                <i class="fas fa-shield-alt mr-2"></i>
+                Admin Panel
+              </h2>
+              
+              <nav class="space-y-2">
+                <a href="#dashboard" class="admin-nav-item active flex items-center px-4 py-2 text-red-600 bg-red-50 rounded-lg">
+                  <i class="fas fa-chart-bar mr-3"></i>
+                  Dashboard
+                </a>
+                <a href="#users" class="admin-nav-item flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
+                  <i class="fas fa-users mr-3"></i>
+                  Users
+                </a>
+                <a href="#listings" class="admin-nav-item flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
+                  <i class="fas fa-car mr-3"></i>
+                  Listings
+                </a>
+                <a href="#messages" class="admin-nav-item flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
+                  <i class="fas fa-envelope mr-3"></i>
+                  Messages
+                </a>
+                <a href="#reports" class="admin-nav-item flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
+                  <i class="fas fa-flag mr-3"></i>
+                  Reports
+                </a>
+              </nav>
+            </div>
+          </div>
+          
+          {/* Admin Content */}
+          <div class="lg:w-3/4">
+            <div id="admin-content">
+              {/* Admin content will be loaded by JavaScript */}
+            </div>
           </div>
         </div>
       </div>

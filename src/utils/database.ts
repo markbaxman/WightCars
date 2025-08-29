@@ -439,4 +439,219 @@ export class DatabaseService {
       return []
     }
   }
+
+  async incrementCarViews(carId: number): Promise<void> {
+    try {
+      await this.db.prepare(`
+        UPDATE cars SET views = views + 1 WHERE id = ?
+      `).bind(carId).run()
+    } catch (error) {
+      console.error('Error incrementing car views:', error)
+    }
+  }
+
+  async updateCar(carId: number, carData: Partial<CarCreate>): Promise<Car | null> {
+    try {
+      const updateFields = []
+      const updateValues = []
+      
+      // Build dynamic update query
+      if (carData.title) {
+        updateFields.push('title = ?')
+        updateValues.push(carData.title)
+      }
+      if (carData.description !== undefined) {
+        updateFields.push('description = ?')
+        updateValues.push(carData.description)
+      }
+      if (carData.make) {
+        updateFields.push('make = ?')
+        updateValues.push(carData.make)
+      }
+      if (carData.model) {
+        updateFields.push('model = ?')
+        updateValues.push(carData.model)
+      }
+      if (carData.year) {
+        updateFields.push('year = ?')
+        updateValues.push(carData.year)
+      }
+      if (carData.mileage !== undefined) {
+        updateFields.push('mileage = ?')
+        updateValues.push(carData.mileage)
+      }
+      if (carData.fuel_type) {
+        updateFields.push('fuel_type = ?')
+        updateValues.push(carData.fuel_type)
+      }
+      if (carData.transmission) {
+        updateFields.push('transmission = ?')
+        updateValues.push(carData.transmission)
+      }
+      if (carData.body_type) {
+        updateFields.push('body_type = ?')
+        updateValues.push(carData.body_type)
+      }
+      if (carData.engine_size) {
+        updateFields.push('engine_size = ?')
+        updateValues.push(carData.engine_size)
+      }
+      if (carData.doors) {
+        updateFields.push('doors = ?')
+        updateValues.push(carData.doors)
+      }
+      if (carData.color) {
+        updateFields.push('color = ?')
+        updateValues.push(carData.color)
+      }
+      if (carData.price !== undefined) {
+        updateFields.push('price = ?')
+        updateValues.push(carData.price)
+      }
+      if (carData.is_negotiable !== undefined) {
+        updateFields.push('is_negotiable = ?')
+        updateValues.push(carData.is_negotiable ? 1 : 0)
+      }
+      if (carData.location) {
+        updateFields.push('location = ?')
+        updateValues.push(carData.location)
+      }
+      if (carData.postcode) {
+        updateFields.push('postcode = ?')
+        updateValues.push(carData.postcode)
+      }
+      if (carData.mot_expiry) {
+        updateFields.push('mot_expiry = ?')
+        updateValues.push(carData.mot_expiry)
+      }
+      if (carData.service_history) {
+        updateFields.push('service_history = ?')
+        updateValues.push(carData.service_history)
+      }
+      if (carData.features) {
+        updateFields.push('features = ?')
+        updateValues.push(JSON.stringify(carData.features))
+      }
+      if (carData.condition_notes) {
+        updateFields.push('condition_notes = ?')
+        updateValues.push(carData.condition_notes)
+      }
+      if (carData.images) {
+        updateFields.push('images = ?')
+        updateValues.push(JSON.stringify(carData.images))
+      }
+      if (carData.featured_image) {
+        updateFields.push('featured_image = ?')
+        updateValues.push(carData.featured_image)
+      }
+
+      updateFields.push('updated_at = CURRENT_TIMESTAMP')
+      updateValues.push(carId)
+
+      const result = await this.db.prepare(`
+        UPDATE cars SET ${updateFields.join(', ')} 
+        WHERE id = ?
+        RETURNING *
+      `).bind(...updateValues).first()
+
+      return result as Car
+    } catch (error) {
+      console.error('Error updating car:', error)
+      return null
+    }
+  }
+
+  async deleteCar(carId: number): Promise<boolean> {
+    try {
+      await this.db.prepare(`
+        DELETE FROM cars WHERE id = ?
+      `).bind(carId).run()
+      
+      return true
+    } catch (error) {
+      console.error('Error deleting car:', error)
+      return false
+    }
+  }
+
+  async getUserStats(userId: number): Promise<any> {
+    try {
+      const [carCount, messageCount, savedCount] = await Promise.all([
+        this.db.prepare(`SELECT COUNT(*) as count FROM cars WHERE user_id = ?`).bind(userId).first(),
+        this.db.prepare(`SELECT COUNT(*) as count FROM messages WHERE recipient_id = ?`).bind(userId).first(),
+        this.db.prepare(`SELECT COUNT(*) as count FROM saved_cars WHERE user_id = ?`).bind(userId).first()
+      ])
+
+      return {
+        cars: (carCount as any)?.count || 0,
+        messages: (messageCount as any)?.count || 0,
+        saved: (savedCount as any)?.count || 0
+      }
+    } catch (error) {
+      console.error('Error fetching user stats:', error)
+      return { cars: 0, messages: 0, saved: 0 }
+    }
+  }
+
+  async getRecentActivity(userId: number): Promise<any[]> {
+    try {
+      const results = await this.db.prepare(`
+        SELECT 
+          'message' as type,
+          created_at,
+          'New message about ' || (SELECT title FROM cars WHERE id = car_id) as description
+        FROM messages 
+        WHERE recipient_id = ? 
+        UNION ALL
+        SELECT 
+          'car' as type,
+          created_at,
+          'Listed ' || title as description
+        FROM cars 
+        WHERE user_id = ? 
+        ORDER BY created_at DESC 
+        LIMIT 10
+      `).bind(userId, userId).all()
+
+      return results.results || []
+    } catch (error) {
+      console.error('Error fetching recent activity:', error)
+      return []
+    }
+  }
+
+  async getUserCars(userId: number, limit: number = 20): Promise<Car[]> {
+    try {
+      const results = await this.db.prepare(`
+        SELECT 
+          cars.*,
+          users.full_name as seller_name,
+          users.location as seller_location,
+          users.is_dealer as seller_is_dealer,
+          users.is_verified as seller_is_verified
+        FROM cars
+        JOIN users ON cars.user_id = users.id
+        WHERE cars.user_id = ? AND cars.status = 'active'
+        ORDER BY cars.created_at DESC
+        LIMIT ?
+      `).bind(userId, limit).all()
+
+      return results.results.map((row: any) => ({
+        ...row,
+        is_negotiable: Boolean(row.is_negotiable),
+        is_featured: Boolean(row.is_featured),
+        features: row.features ? JSON.parse(row.features) : [],
+        images: row.images ? JSON.parse(row.images) : [],
+        seller: {
+          full_name: row.seller_name,
+          location: row.seller_location,
+          is_dealer: Boolean(row.seller_is_dealer),
+          is_verified: Boolean(row.seller_is_verified)
+        }
+      }))
+    } catch (error) {
+      console.error('Error fetching user cars:', error)
+      return []
+    }
+  }
 }
