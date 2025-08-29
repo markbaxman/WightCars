@@ -1,34 +1,23 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "webapp",
+  "name": "wightcars",
+  "main": "src/index.tsx",
   "compatibility_date": "2025-08-29",
   "pages_build_output_dir": "./dist",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ]
-  // "vars": {
-  //   "MY_VAR": "my-variable"
-  // },
-  // "kv_namespaces": [
-  //   {
-  //     "binding": "MY_KV_NAMESPACE",
-  //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  //   }
-  // ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "MY_BUCKET",
-  //     "bucket_name": "my-bucket"
-  //   }
-  // ],
+  "compatibility_flags": ["nodejs_compat"],
+  
+  // D1 Database will be created during deployment
+  // For local development, wrangler creates a local SQLite database automatically
   // "d1_databases": [
   //   {
-  //     "binding": "MY_DB",
-  //     "database_name": "my-database",
+  //     "binding": "DB",
+  //     "database_name": "wightcars-production", 
   //     "database_id": ""
   //   }
   // ],
-  // "ai": {
-  //   "binding": "AI"
-  // }
+  
+  // Environment variables for JWT and other secrets
+  "vars": {
+    "ENVIRONMENT": "development"
+  }
 }

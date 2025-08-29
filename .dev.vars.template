@@ -1,0 +1,29 @@
+# WightCars Environment Variables Template
+# Copy this file to .dev.vars and fill in your values
+
+# JWT Secret for token signing (use a strong random string in production)
+JWT_SECRET="wightcars-development-secret-key-change-in-production"
+
+# Environment
+ENVIRONMENT="development"
+
+# Database URL (for local development, this is handled by wrangler --local)
+# DATABASE_URL is not needed as we use Cloudflare D1 with wrangler
+
+# Email configuration (optional - for future features)
+# SMTP_HOST=""
+# SMTP_PORT=""
+# SMTP_USER=""
+# SMTP_PASS=""
+
+# File upload configuration (optional - for future features)
+# UPLOAD_LIMIT="10mb"
+# ALLOWED_IMAGES="jpg,jpeg,png,webp"
+
+# External API keys (optional - for future features)
+# GOOGLE_MAPS_API_KEY=""
+# POSTCODE_API_KEY=""
+
+# Social media configuration (optional)
+# FACEBOOK_APP_ID=""
+# GOOGLE_ANALYTICS_ID=""
